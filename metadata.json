@@ -1,0 +1,6 @@
+{
+  "name": "CustodyGrid — Municipal Meter & Work Order Operations",
+  "description": "End-to-end municipal work order management, meter chain-of-custody tracking, mobile field installation capture, and automated job card generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

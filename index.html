@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        function isBenignError(err) {
+          if (!err) return false;
+          var name = typeof err.name === 'string' ? err.name : '';
+          var msg =
+            typeof err.message === 'string' ? err.message : String(err || '');
+          return (
+            name === 'AbortError' ||
+            msg.indexOf('The user aborted a request') !== -1 ||
+            msg.indexOf('signal is aborted') !== -1 ||
+            msg.indexOf('Could not reach Cloud Firestore backend') !== -1 ||
+            msg.indexOf('[code=unavailable]') !== -1 ||
+            msg.indexOf('popup-closed-by-user') !== -1 ||
+            msg.indexOf('cancelled-popup-request') !== -1
+          );
+        }
+
+        try {
+          var currentFetch =
+            typeof window.fetch === 'function'
+              ? window.fetch.bind(window)
+              : undefined;
+          if (currentFetch) {
+            try {
+              Object.defineProperty(window, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function () {
+                  return currentFetch;
+                },
+                set: function (fn) {
+                  if (typeof fn === 'function') {
+                    currentFetch = fn;
+                  }
+                },
+              });
+            } catch (e1) {}
+            try {
+              if (typeof Window !== 'undefined' && Window.prototype) {
+                Object.defineProperty(Window.prototype, 'fetch', {
+                  configurable: true,
+                  enumerable: true,
+                  get: function () {
+                    return currentFetch;
+                  },
+                  set: function (fn) {
+                    if (typeof fn === 'function') {
+                      currentFetch = fn;
+                    }
+                  },
+                });
+              }
+            } catch (e2) {}
+          }
+
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker
+              .getRegistrations()
+              .then(function (regs) {
+                for (var i = 0; i < regs.length; i++) {
+                  if (
+                    regs[i].active &&
+                    regs[i].active.scriptURL.indexOf('dev-sw') !== -1
+                  ) {
+                    regs[i].unregister();
+                  }
+                }
+              })
+              .catch(function () {});
+          }
+
+          if (typeof console !== 'undefined') {
+            if (typeof console.error === 'function') {
+              var origConsoleError = console.error.bind(console);
+              console.error = function () {
+                for (var i = 0; i < arguments.length; i++) {
+                  if (isBenignError(arguments[i])) {
+                    return;
+                  }
+                }
+                return origConsoleError.apply(console, arguments);
+              };
+            }
+            if (typeof console.warn === 'function') {
+              var origConsoleWarn = console.warn.bind(console);
+              console.warn = function () {
+                for (var i = 0; i < arguments.length; i++) {
+                  if (isBenignError(arguments[i])) {
+                    return;
+                  }
+                }
+                return origConsoleWarn.apply(console, arguments);
+              };
+            }
+          }
+
+          window.addEventListener(
+            'unhandledrejection',
+            function (event) {
+              if (isBenignError(event && event.reason)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              }
+            },
+            true
+          );
+          window.addEventListener(
+            'error',
+            function (event) {
+              if (
+                isBenignError(event && event.error) ||
+                isBenignError(event && event.message)
+              ) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              }
+            },
+            true
+          );
+        } catch (err) {
+          // Ignore
+        }
+      })();
+    </script>
+    <title>PrimeChain — Municipal Meter & Work Order Operations</title>
+    <meta name="description" content="PrimeChain end-to-end municipal work order management, meter chain-of-custody tracking, mobile field installation capture, and automated job card generation." />
+    <meta property="og:title" content="PrimeChain — Municipal Meter & Work Order Operations" />
+    <meta property="og:description" content="PrimeChain end-to-end municipal work order management, meter chain-of-custody tracking, mobile field installation capture, and automated job card generation." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#181818" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PrimeChain" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,459 @@
+{
+  "entities": {
+    "PilotDevice": {
+      "title": "PilotDevice",
+      "description": "A serialised municipal meter tracked in the pilot chain of custody.",
+      "type": "object",
+      "properties": {
+        "serialNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "deviceType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "manufacturer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "dateReceived": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "batchNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Available", "Allocated", "Installed", "Investigation"]
+        },
+        "assignedTechnicianId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64
+        },
+        "assignedTechnicianName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "dateIssued": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "installedWorkOrderNumber": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64
+        },
+        "installedDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "sealNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "serialNumber",
+        "model",
+        "deviceType",
+        "manufacturer",
+        "dateReceived",
+        "batchNumber",
+        "status",
+        "assignedTechnicianId",
+        "assignedTechnicianName",
+        "dateIssued",
+        "installedWorkOrderNumber",
+        "installedDate",
+        "sealNumber",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PilotWorkOrder": {
+      "title": "PilotWorkOrder",
+      "description": "A municipal work order allocated for field execution.",
+      "type": "object",
+      "properties": {
+        "workOrderNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "municipalBatchId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "accountNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "suburb": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "ward": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "oldDeviceSerial": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "oldDeviceMake": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "existingReading": {
+          "type": "number"
+        },
+        "workType": {
+          "type": "string",
+          "enum": ["Installation", "Audit", "Cut-Off"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Received", "Assigned", "Completed", "Submitted", "Exception"]
+        },
+        "assignedTechnicianId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64
+        },
+        "assignedTechnicianName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "dateAllocated": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "completedDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "installedDeviceSerial": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64
+        },
+        "jobCardId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64
+        },
+        "exceptionReason": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "municipalNotes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 400
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "workOrderNumber",
+        "municipalBatchId",
+        "customerName",
+        "accountNumber",
+        "address",
+        "suburb",
+        "ward",
+        "oldDeviceSerial",
+        "oldDeviceMake",
+        "existingReading",
+        "workType",
+        "status",
+        "assignedTechnicianId",
+        "assignedTechnicianName",
+        "dateAllocated",
+        "completedDate",
+        "installedDeviceSerial",
+        "jobCardId",
+        "exceptionReason",
+        "municipalNotes",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PilotJobCard": {
+      "title": "PilotJobCard",
+      "description": "An automatically generated municipal job card record.",
+      "type": "object",
+      "properties": {
+        "jobCardId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "workOrderNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "accountNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "suburb": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "ward": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "workType": {
+          "type": "string",
+          "enum": ["Installation", "Audit", "Cut-Off"]
+        },
+        "technicianId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "technicianName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "employeeCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "oldDeviceSerial": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "oldDeviceMake": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "oldMeterReading": {
+          "type": "number"
+        },
+        "newDeviceSerial": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "newDeviceModel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "newDeviceManufacturer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "newMeterReading": {
+          "type": "number"
+        },
+        "sealNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "installationStatus": {
+          "type": "string",
+          "enum": ["Completed", "Audit Verified", "Cut-Off Executed", "Exception"]
+        },
+        "installationDate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "gpsCoordinates": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "fieldNotes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "reviewStatus": {
+          "type": "string",
+          "enum": ["Ready for Review", "Submitted to Municipality", "Flagged Exception"]
+        },
+        "generatedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "submittedAt": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "jobCardId",
+        "workOrderNumber",
+        "customerName",
+        "accountNumber",
+        "address",
+        "suburb",
+        "ward",
+        "workType",
+        "technicianId",
+        "technicianName",
+        "employeeCode",
+        "oldDeviceSerial",
+        "oldDeviceMake",
+        "oldMeterReading",
+        "newDeviceSerial",
+        "newDeviceModel",
+        "newDeviceManufacturer",
+        "newMeterReading",
+        "sealNumber",
+        "installationStatus",
+        "installationDate",
+        "gpsCoordinates",
+        "fieldNotes",
+        "reviewStatus",
+        "generatedAt",
+        "submittedAt",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminDoc": {
+      "title": "AdminDoc",
+      "description": "Trusted administrator lookup document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/pilot_devices/{serialNumber}": {
+      "schema": { "$ref": "#/entities/PilotDevice" },
+      "description": "Stores registered municipal meter devices for the pilot."
+    },
+    "/pilot_work_orders/{workOrderNumber}": {
+      "schema": { "$ref": "#/entities/PilotWorkOrder" },
+      "description": "Stores municipal work orders for the pilot."
+    },
+    "/pilot_job_cards/{jobCardId}": {
+      "schema": { "$ref": "#/entities/PilotJobCard" },
+      "description": "Stores automatically generated job cards for the pilot."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminDoc" },
+      "description": "Trusted administrator lookup table."
+    }
+  }
+}

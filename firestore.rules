@@ -1,0 +1,382 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "tonytshuks@gmail.com"
+      );
+    }
+
+    function isValidPilotDevice(data) {
+      return data.keys().hasAll([
+        'serialNumber',
+        'model',
+        'deviceType',
+        'manufacturer',
+        'dateReceived',
+        'batchNumber',
+        'status',
+        'assignedTechnicianId',
+        'assignedTechnicianName',
+        'dateIssued',
+        'installedWorkOrderNumber',
+        'installedDate',
+        'sealNumber',
+        'ownerUid',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'serialNumber',
+        'model',
+        'deviceType',
+        'manufacturer',
+        'dateReceived',
+        'batchNumber',
+        'status',
+        'assignedTechnicianId',
+        'assignedTechnicianName',
+        'dateIssued',
+        'installedWorkOrderNumber',
+        'installedDate',
+        'sealNumber',
+        'ownerUid',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.serialNumber is string && data.serialNumber.size() >= 1 && data.serialNumber.size() <= 64 && data.serialNumber.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.model is string && data.model.size() >= 1 && data.model.size() <= 120 &&
+      data.deviceType is string && data.deviceType.size() >= 1 && data.deviceType.size() <= 120 &&
+      data.manufacturer is string && data.manufacturer.size() >= 1 && data.manufacturer.size() <= 80 &&
+      data.dateReceived is string && data.dateReceived.size() >= 1 && data.dateReceived.size() <= 80 &&
+      data.batchNumber is string && data.batchNumber.size() >= 1 && data.batchNumber.size() <= 80 &&
+      data.status is string && data.status in ['Available', 'Allocated', 'Installed', 'Investigation'] &&
+      data.assignedTechnicianId is string && data.assignedTechnicianId.size() <= 64 &&
+      data.assignedTechnicianName is string && data.assignedTechnicianName.size() <= 120 &&
+      data.dateIssued is string && data.dateIssued.size() <= 80 &&
+      data.installedWorkOrderNumber is string && data.installedWorkOrderNumber.size() <= 64 &&
+      data.installedDate is string && data.installedDate.size() <= 80 &&
+      data.sealNumber is string && data.sealNumber.size() >= 1 && data.sealNumber.size() <= 64 &&
+      data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+      data.ownerUid == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidPilotWorkOrder(data) {
+      return data.keys().hasAll([
+        'workOrderNumber',
+        'municipalBatchId',
+        'customerName',
+        'accountNumber',
+        'address',
+        'suburb',
+        'ward',
+        'oldDeviceSerial',
+        'oldDeviceMake',
+        'existingReading',
+        'workType',
+        'status',
+        'assignedTechnicianId',
+        'assignedTechnicianName',
+        'dateAllocated',
+        'completedDate',
+        'installedDeviceSerial',
+        'jobCardId',
+        'exceptionReason',
+        'municipalNotes',
+        'ownerUid',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'workOrderNumber',
+        'municipalBatchId',
+        'customerName',
+        'accountNumber',
+        'address',
+        'suburb',
+        'ward',
+        'oldDeviceSerial',
+        'oldDeviceMake',
+        'existingReading',
+        'workType',
+        'status',
+        'assignedTechnicianId',
+        'assignedTechnicianName',
+        'dateAllocated',
+        'completedDate',
+        'installedDeviceSerial',
+        'jobCardId',
+        'exceptionReason',
+        'municipalNotes',
+        'ownerUid',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.workOrderNumber is string && data.workOrderNumber.size() >= 1 && data.workOrderNumber.size() <= 64 && data.workOrderNumber.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.municipalBatchId is string && data.municipalBatchId.size() >= 1 && data.municipalBatchId.size() <= 80 &&
+      data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
+      data.accountNumber is string && data.accountNumber.size() >= 1 && data.accountNumber.size() <= 64 &&
+      data.address is string && data.address.size() >= 1 && data.address.size() <= 200 &&
+      data.suburb is string && data.suburb.size() >= 1 && data.suburb.size() <= 80 &&
+      data.ward is string && data.ward.size() >= 1 && data.ward.size() <= 64 &&
+      data.oldDeviceSerial is string && data.oldDeviceSerial.size() >= 1 && data.oldDeviceSerial.size() <= 64 &&
+      data.oldDeviceMake is string && data.oldDeviceMake.size() >= 1 && data.oldDeviceMake.size() <= 120 &&
+      (data.existingReading is int || data.existingReading is float) && data.existingReading >= 0 &&
+      data.workType is string && data.workType in ['Installation', 'Audit', 'Cut-Off'] &&
+      data.status is string && data.status in ['Received', 'Assigned', 'Completed', 'Submitted', 'Exception'] &&
+      data.assignedTechnicianId is string && data.assignedTechnicianId.size() <= 64 &&
+      data.assignedTechnicianName is string && data.assignedTechnicianName.size() <= 120 &&
+      data.dateAllocated is string && data.dateAllocated.size() >= 1 && data.dateAllocated.size() <= 80 &&
+      data.completedDate is string && data.completedDate.size() <= 80 &&
+      data.installedDeviceSerial is string && data.installedDeviceSerial.size() <= 64 &&
+      data.jobCardId is string && data.jobCardId.size() <= 64 &&
+      data.exceptionReason is string && data.exceptionReason.size() <= 300 &&
+      data.municipalNotes is string && data.municipalNotes.size() <= 400 &&
+      data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+      data.ownerUid == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidPilotJobCard(data) {
+      return data.keys().hasAll([
+        'jobCardId',
+        'workOrderNumber',
+        'customerName',
+        'accountNumber',
+        'address',
+        'suburb',
+        'ward',
+        'workType',
+        'technicianId',
+        'technicianName',
+        'employeeCode',
+        'oldDeviceSerial',
+        'oldDeviceMake',
+        'oldMeterReading',
+        'newDeviceSerial',
+        'newDeviceModel',
+        'newDeviceManufacturer',
+        'newMeterReading',
+        'sealNumber',
+        'installationStatus',
+        'installationDate',
+        'gpsCoordinates',
+        'fieldNotes',
+        'reviewStatus',
+        'generatedAt',
+        'submittedAt',
+        'ownerUid',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'jobCardId',
+        'workOrderNumber',
+        'customerName',
+        'accountNumber',
+        'address',
+        'suburb',
+        'ward',
+        'workType',
+        'technicianId',
+        'technicianName',
+        'employeeCode',
+        'oldDeviceSerial',
+        'oldDeviceMake',
+        'oldMeterReading',
+        'newDeviceSerial',
+        'newDeviceModel',
+        'newDeviceManufacturer',
+        'newMeterReading',
+        'sealNumber',
+        'installationStatus',
+        'installationDate',
+        'gpsCoordinates',
+        'fieldNotes',
+        'reviewStatus',
+        'generatedAt',
+        'submittedAt',
+        'ownerUid',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.jobCardId is string && data.jobCardId.size() >= 1 && data.jobCardId.size() <= 64 && data.jobCardId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.workOrderNumber is string && data.workOrderNumber.size() >= 1 && data.workOrderNumber.size() <= 64 &&
+      data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
+      data.accountNumber is string && data.accountNumber.size() >= 1 && data.accountNumber.size() <= 64 &&
+      data.address is string && data.address.size() >= 1 && data.address.size() <= 200 &&
+      data.suburb is string && data.suburb.size() >= 1 && data.suburb.size() <= 80 &&
+      data.ward is string && data.ward.size() >= 1 && data.ward.size() <= 64 &&
+      data.workType is string && data.workType in ['Installation', 'Audit', 'Cut-Off'] &&
+      data.technicianId is string && data.technicianId.size() >= 1 && data.technicianId.size() <= 64 &&
+      data.technicianName is string && data.technicianName.size() >= 1 && data.technicianName.size() <= 120 &&
+      data.employeeCode is string && data.employeeCode.size() >= 1 && data.employeeCode.size() <= 64 &&
+      data.oldDeviceSerial is string && data.oldDeviceSerial.size() >= 1 && data.oldDeviceSerial.size() <= 64 &&
+      data.oldDeviceMake is string && data.oldDeviceMake.size() >= 1 && data.oldDeviceMake.size() <= 120 &&
+      (data.oldMeterReading is int || data.oldMeterReading is float) && data.oldMeterReading >= 0 &&
+      data.newDeviceSerial is string && data.newDeviceSerial.size() >= 1 && data.newDeviceSerial.size() <= 64 &&
+      data.newDeviceModel is string && data.newDeviceModel.size() >= 1 && data.newDeviceModel.size() <= 120 &&
+      data.newDeviceManufacturer is string && data.newDeviceManufacturer.size() >= 1 && data.newDeviceManufacturer.size() <= 80 &&
+      (data.newMeterReading is int || data.newMeterReading is float) && data.newMeterReading >= 0 &&
+      data.sealNumber is string && data.sealNumber.size() >= 1 && data.sealNumber.size() <= 64 &&
+      data.installationStatus is string && data.installationStatus in ['Completed', 'Audit Verified', 'Cut-Off Executed', 'Exception'] &&
+      data.installationDate is string && data.installationDate.size() >= 1 && data.installationDate.size() <= 80 &&
+      data.gpsCoordinates is string && data.gpsCoordinates.size() >= 1 && data.gpsCoordinates.size() <= 120 &&
+      data.fieldNotes is string && data.fieldNotes.size() <= 500 &&
+      data.reviewStatus is string && data.reviewStatus in ['Ready for Review', 'Submitted to Municipality', 'Flagged Exception'] &&
+      data.generatedAt is string && data.generatedAt.size() >= 1 && data.generatedAt.size() <= 80 &&
+      data.submittedAt is string && data.submittedAt.size() <= 80 &&
+      data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+      data.ownerUid == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    match /pilot_devices/{serialNumber} {
+      allow get: if isVerifiedUser() && isValidId(serialNumber) && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+
+      allow create: if isVerifiedUser() &&
+        isValidId(serialNumber) &&
+        isValidPilotDevice(incoming()) &&
+        incoming().serialNumber == serialNumber &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(serialNumber) &&
+        isValidPilotDevice(incoming()) &&
+        incoming().serialNumber == existing().serialNumber &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().status != 'Installed' || isAdmin()) &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'status',
+              'assignedTechnicianId',
+              'assignedTechnicianName',
+              'dateIssued',
+              'installedWorkOrderNumber',
+              'installedDate',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(serialNumber) && isAdmin();
+    }
+
+    match /pilot_work_orders/{workOrderNumber} {
+      allow get: if isVerifiedUser() && isValidId(workOrderNumber) && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+
+      allow create: if isVerifiedUser() &&
+        isValidId(workOrderNumber) &&
+        isValidPilotWorkOrder(incoming()) &&
+        incoming().workOrderNumber == workOrderNumber &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(workOrderNumber) &&
+        isValidPilotWorkOrder(incoming()) &&
+        incoming().workOrderNumber == existing().workOrderNumber &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().status != 'Submitted' || isAdmin()) &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'status',
+              'assignedTechnicianId',
+              'assignedTechnicianName',
+              'completedDate',
+              'installedDeviceSerial',
+              'jobCardId',
+              'exceptionReason',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(workOrderNumber) && isAdmin();
+    }
+
+    match /pilot_job_cards/{jobCardId} {
+      allow get: if isVerifiedUser() && isValidId(jobCardId) && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+
+      allow create: if isVerifiedUser() &&
+        isValidId(jobCardId) &&
+        isValidPilotJobCard(incoming()) &&
+        incoming().jobCardId == jobCardId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/pilot_work_orders/$(incoming().workOrderNumber));
+
+      allow update: if isVerifiedUser() &&
+        isValidId(jobCardId) &&
+        isValidPilotJobCard(incoming()) &&
+        incoming().jobCardId == existing().jobCardId &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().reviewStatus != 'Submitted to Municipality' || isAdmin()) &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'reviewStatus',
+              'submittedAt',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(jobCardId) && isAdmin();
+    }
+
+    match /admins/{adminUid} {
+      allow get: if isVerifiedUser() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+  }
+}
