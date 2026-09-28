@@ -67,7 +67,12 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     e.preventDefault();
     if (!customerName.trim() || !address.trim()) return;
     const tech = technicians.find((t) => t.id === assignedTechId);
-    const nextNum = 8840 + workOrders.length + 1;
+    const maxWoNum = workOrders.reduce((max, w) => {
+      const match = w.workOrderNumber.match(/WO-2026-(\d+)/);
+      const n = match ? parseInt(match[1], 10) : 0;
+      return !isNaN(n) && n > max ? n : max;
+    }, 8846);
+    const nextNum = maxWoNum + 1;
     const newWo: WorkOrder = {
       workOrderNumber: `WO-2026-${nextNum}`,
       municipalBatchId: 'JHB-CITYPOWER-0926',
@@ -83,15 +88,19 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       status: tech ? 'Assigned' : 'Received',
       assignedTechnicianId: tech?.id,
       assignedTechnicianName: tech?.name,
-      dateAllocated: '26 September 2026',
+      dateAllocated: '28 September 2026 · Live Dispatch',
       municipalNotes: municipalNotes.trim(),
     };
     onAddWorkOrder(newWo);
     setCustomerName('');
     setAddress('');
     setShowCreateForm(false);
-    setImportNotice(`Work Order ${newWo.workOrderNumber} registered and allocated.`);
-    setTimeout(() => setImportNotice(null), 4000);
+    setImportNotice(
+      `Work Order ${newWo.workOrderNumber} registered and dispatched to ${
+        tech ? `${tech.name} (${tech.employeeCode})` : 'Unassigned Queue'
+      } — synced live to mobile field terminals.`
+    );
+    setTimeout(() => setImportNotice(null), 5000);
   };
 
   const filteredOrders = workOrders.filter((wo) => {

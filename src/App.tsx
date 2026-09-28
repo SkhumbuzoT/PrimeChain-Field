@@ -153,27 +153,201 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setAuthReady(true);
-      if (!user) {
-        setIsCloudSynced(false);
-      }
     });
     return () => unsubscribe();
   }, []);
 
-  // Seed / Push current pilot data to Firestore
+  // Merge helpers by unique primary key so newly created desktop items are never lost
+  const mergeByKey = <T,>(
+    remoteList: T[],
+    localList: T[],
+    getKey: (item: T) => string
+  ): { merged: T[]; localOnly: T[] } => {
+    const remoteMap = new Map<string, T>();
+    remoteList.forEach((item) => remoteMap.set(getKey(item), item));
+    const localOnly: T[] = [];
+    localList.forEach((item) => {
+      const k = getKey(item);
+      if (!remoteMap.has(k)) {
+        localOnly.push(item);
+      }
+    });
+    return {
+      merged: [...localOnly, ...remoteList],
+      localOnly,
+    };
+  };
+
+  // Push state updates to the shared real-time Express server (/api/sync)
+  const pushStateToServer = async (payload: {
+    devices?: MeterDevice[];
+    workOrders?: WorkOrder[];
+    technicians?: Technician[];
+    jobCards?: JobCardRecord[];
+    reset?: boolean;
+  }) => {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setIsCloudSynced(true);
+      }
+    } catch {
+      // Offline or static host fallback
+    }
+  };
+
+  // Real-time Server-Sent Events (/api/events) + Polling (/api/state) for zero-login Desktop <-> Phone sync
+  useEffect(() => {
+    let lastVersion = -1;
+    let isMounted = true;
+
+    const syncFromServer = async (isInitialBoot = false) => {
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        if (!res.ok || !isMounted) return;
+        const data = await res.json();
+        setIsCloudSynced(true);
+
+        if (isInitialBoot) {
+          const remoteDevs: MeterDevice[] = Array.isArray(data.devices)
+            ? data.devices
+            : [];
+          const remoteWOs: WorkOrder[] = Array.isArray(data.workOrders)
+            ? data.workOrders
+            : [];
+          const remoteTechs: Technician[] = Array.isArray(data.technicians)
+            ? data.technicians
+            : [];
+          const remoteJCs: JobCardRecord[] = Array.isArray(data.jobCards)
+            ? data.jobCards
+            : [];
+
+          if (data.version === 0 || remoteWOs.length === 0) {
+            await pushStateToServer({
+              devices,
+              workOrders,
+              technicians,
+              jobCards,
+            });
+            return;
+          }
+
+          const devMerge = mergeByKey(
+            remoteDevs,
+            devices,
+            (d) => d.serialNumber
+          );
+          const woMerge = mergeByKey(
+            remoteWOs,
+            workOrders,
+            (w) => w.workOrderNumber
+          );
+          const techMerge = mergeByKey(
+            remoteTechs,
+            technicians,
+            (t) => t.id
+          );
+          const jcMerge = mergeByKey(
+            remoteJCs,
+            jobCards,
+            (j) => j.jobCardId
+          );
+
+          lastVersion = data.version;
+          setDevices(devMerge.merged);
+          setWorkOrders(woMerge.merged);
+          setTechnicians(techMerge.merged);
+          setJobCards(jcMerge.merged);
+
+          if (
+            devMerge.localOnly.length > 0 ||
+            woMerge.localOnly.length > 0 ||
+            techMerge.localOnly.length > 0 ||
+            jcMerge.localOnly.length > 0
+          ) {
+            await pushStateToServer({
+              devices: devMerge.merged,
+              workOrders: woMerge.merged,
+              technicians: techMerge.merged,
+              jobCards: jcMerge.merged,
+            });
+          }
+          return;
+        }
+
+        if (typeof data.version === 'number' && data.version > lastVersion) {
+          lastVersion = data.version;
+          if (Array.isArray(data.devices)) setDevices(data.devices);
+          if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
+          if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
+          if (Array.isArray(data.jobCards)) setJobCards(data.jobCards);
+        }
+      } catch {
+        // Ignore network errors when offline
+      }
+    };
+
+    syncFromServer(true);
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/events');
+      es.onmessage = (event) => {
+        if (!isMounted) return;
+        try {
+          const data = JSON.parse(event.data);
+          setIsCloudSynced(true);
+          if (typeof data.version === 'number' && data.version > lastVersion && lastVersion !== -1) {
+            lastVersion = data.version;
+            if (Array.isArray(data.devices)) setDevices(data.devices);
+            if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
+            if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
+            if (Array.isArray(data.jobCards)) setJobCards(data.jobCards);
+          }
+        } catch {
+          // ignore malformed event
+        }
+      };
+    } catch {
+      // fallback to polling
+    }
+
+    const pollTimer = setInterval(() => {
+      syncFromServer(false);
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollTimer);
+      es?.close();
+    };
+  }, []);
+
+  // Seed / Push current pilot data to Firestore & Live Server
   const handlePushSeedDataToCloud = async (uidOverride?: string) => {
-    const uid = uidOverride || currentUser?.uid;
-    if (!uid) return;
     setIsSyncing(true);
     try {
-      for (const dev of devices) {
-        await syncDeviceToCloud(dev, uid);
-      }
-      for (const wo of workOrders) {
-        await syncWorkOrderToCloud(wo, uid);
-      }
-      for (const jc of jobCards) {
-        await syncJobCardToCloud(jc, uid);
+      await pushStateToServer({
+        devices,
+        workOrders,
+        technicians,
+        jobCards,
+      });
+      const uid = uidOverride || currentUser?.uid;
+      if (uid) {
+        for (const dev of devices) {
+          await syncDeviceToCloud(dev, uid);
+        }
+        for (const wo of workOrders) {
+          await syncWorkOrderToCloud(wo, uid);
+        }
+        for (const jc of jobCards) {
+          await syncJobCardToCloud(jc, uid);
+        }
       }
       setIsCloudSynced(true);
     } finally {
@@ -203,7 +377,6 @@ export default function App() {
       devicesQ,
       (snap) => {
         if (snap.empty) {
-          // Auto-seed initial pilot batch on first cloud login
           handlePushSeedDataToCloud(uid);
           return;
         }
@@ -240,7 +413,18 @@ export default function App() {
             ],
           };
         });
-        setDevices(cloudDevices);
+        setDevices((prev) => {
+          const { merged, localOnly } = mergeByKey(
+            cloudDevices,
+            prev,
+            (item) => item.serialNumber
+          );
+          if (localOnly.length > 0) {
+            localOnly.forEach((dev) => syncDeviceToCloud(dev, uid));
+          }
+          pushStateToServer({ devices: merged });
+          return merged;
+        });
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'pilot_devices');
@@ -276,7 +460,18 @@ export default function App() {
             municipalNotes: w.municipalNotes || '',
           };
         });
-        setWorkOrders(cloudWOs);
+        setWorkOrders((prev) => {
+          const { merged, localOnly } = mergeByKey(
+            cloudWOs,
+            prev,
+            (item) => item.workOrderNumber
+          );
+          if (localOnly.length > 0) {
+            localOnly.forEach((wo) => syncWorkOrderToCloud(wo, uid));
+          }
+          pushStateToServer({ workOrders: merged });
+          return merged;
+        });
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'pilot_work_orders');
@@ -319,7 +514,18 @@ export default function App() {
             submittedAt: j.submittedAt || undefined,
           };
         });
-        setJobCards(cloudJCs);
+        setJobCards((prev) => {
+          const { merged, localOnly } = mergeByKey(
+            cloudJCs,
+            prev,
+            (item) => item.jobCardId
+          );
+          if (localOnly.length > 0) {
+            localOnly.forEach((jc) => syncJobCardToCloud(jc, uid));
+          }
+          pushStateToServer({ jobCards: merged });
+          return merged;
+        });
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'pilot_job_cards');
@@ -379,6 +585,13 @@ export default function App() {
     setJobCards(INITIAL_JOB_CARDS);
     setSelectedJobCardId('JC-2026-0901');
     setNavigationHint(undefined);
+    await pushStateToServer({
+      devices: INITIAL_DEVICES,
+      workOrders: INITIAL_WORK_ORDERS,
+      technicians: INITIAL_TECHNICIANS,
+      jobCards: INITIAL_JOB_CARDS,
+      reset: true,
+    });
     if (currentUser) {
       setIsSyncing(true);
       try {
@@ -416,7 +629,12 @@ export default function App() {
   };
 
   const handleImportWorkOrderBatch = (): number => {
-    const baseNum = 8840 + workOrders.length + 1;
+    const maxWoNum = workOrders.reduce((max, w) => {
+      const match = w.workOrderNumber.match(/WO-2026-(\d+)/);
+      const n = match ? parseInt(match[1], 10) : 0;
+      return !isNaN(n) && n > max ? n : max;
+    }, 8846);
+    const baseNum = maxWoNum + 1;
     const importedBatch: WorkOrder[] = [
       {
         workOrderNumber: `WO-2026-${baseNum}`,
@@ -433,7 +651,7 @@ export default function App() {
         status: 'Assigned',
         assignedTechnicianId: 'TECH-01',
         assignedTechnicianName: 'Sipho Ndlovu',
-        dateAllocated: '26 September 2026',
+        dateAllocated: '28 September 2026 · Live Dispatch',
         municipalNotes:
           'Imported via municipal CSV batch. Assigned to Sipho Ndlovu.',
       },
@@ -450,7 +668,7 @@ export default function App() {
         existingReading: 18930.4,
         workType: 'Audit',
         status: 'Received',
-        dateAllocated: '26 September 2026',
+        dateAllocated: '28 September 2026 · Live Dispatch',
         municipalNotes:
           'Imported via municipal CSV batch. Tamper inspection required.',
       },
@@ -467,12 +685,14 @@ export default function App() {
         existingReading: 41205.8,
         workType: 'Installation',
         status: 'Received',
-        dateAllocated: '26 September 2026',
+        dateAllocated: '28 September 2026 · Live Dispatch',
         municipalNotes:
           'Imported via municipal CSV batch. Smart meter replacement.',
       },
     ];
-    setWorkOrders((prev) => [...importedBatch, ...prev]);
+    const nextWOs = [...importedBatch, ...workOrders];
+    setWorkOrders(nextWOs);
+    pushStateToServer({ workOrders: nextWOs });
     if (currentUser) {
       importedBatch.forEach((wo) => syncWorkOrderToCloud(wo, currentUser.uid));
     }
@@ -480,7 +700,12 @@ export default function App() {
   };
 
   const handleAddWorkOrder = (wo: WorkOrder) => {
-    setWorkOrders((prev) => [wo, ...prev]);
+    const nextWOs = [
+      wo,
+      ...workOrders.filter((item) => item.workOrderNumber !== wo.workOrderNumber),
+    ];
+    setWorkOrders(nextWOs);
+    pushStateToServer({ workOrders: nextWOs });
     if (currentUser) {
       syncWorkOrderToCloud(wo, currentUser.uid);
     }
@@ -492,18 +717,18 @@ export default function App() {
   ) => {
     const tech = technicians.find((t) => t.id === technicianId);
     if (!tech) return;
-    setWorkOrders((prev) =>
-      prev.map((w) =>
-        w.workOrderNumber === workOrderNumber
-          ? {
-              ...w,
-              status: w.status === 'Received' ? 'Assigned' : w.status,
-              assignedTechnicianId: tech.id,
-              assignedTechnicianName: tech.name,
-            }
-          : w
-      )
+    const nextWOs: WorkOrder[] = workOrders.map((w) =>
+      w.workOrderNumber === workOrderNumber
+        ? {
+            ...w,
+            status: w.status === 'Received' ? 'Assigned' : w.status,
+            assignedTechnicianId: tech.id,
+            assignedTechnicianName: tech.name,
+          }
+        : w
     );
+    setWorkOrders(nextWOs);
+    pushStateToServer({ workOrders: nextWOs });
     if (currentUser) {
       updateWorkOrderInCloud(workOrderNumber, {
         status: 'Assigned',
@@ -514,7 +739,12 @@ export default function App() {
   };
 
   const handleRegisterSingleDevice = (device: MeterDevice) => {
-    setDevices((prev) => [device, ...prev]);
+    const nextDevs = [
+      device,
+      ...devices.filter((d) => d.serialNumber !== device.serialNumber),
+    ];
+    setDevices(nextDevs);
+    pushStateToServer({ devices: nextDevs });
     if (currentUser) {
       syncDeviceToCloud(device, currentUser.uid);
     }
@@ -550,7 +780,9 @@ export default function App() {
       };
     });
 
-    setDevices((prev) => [...newBatch, ...prev]);
+    const nextDevs = [...newBatch, ...devices];
+    setDevices(nextDevs);
+    pushStateToServer({ devices: nextDevs });
     if (currentUser) {
       newBatch.forEach((dev) => syncDeviceToCloud(dev, currentUser.uid));
     }
@@ -560,29 +792,29 @@ export default function App() {
   const handleAllocateDevice = (serialNumber: string, technicianId: string) => {
     const tech = technicians.find((t) => t.id === technicianId);
     if (!tech) return;
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (d.serialNumber !== serialNumber) return d;
-        return {
-          ...d,
-          status: 'Allocated',
-          assignedTechnicianId: tech.id,
-          assignedTechnicianName: tech.name,
-          dateIssued: '26 September 2026',
-          custodyHistory: [
-            ...d.custodyHistory,
-            {
-              id: `EVT-${serialNumber}-${d.custodyHistory.length + 1}`,
-              timestamp: '26 September 2026 · 15:32',
-              status: 'Allocated',
-              actor: 'Dispatch Supervisor (R. Naidoo)',
-              locationOrHolder: `${tech.name} (${tech.employeeCode} · Vehicle ${tech.vehicleReg})`,
-              note: `Digitally issued to technician ${tech.name}.`,
-            },
-          ],
-        };
-      })
-    );
+    const nextDevs: MeterDevice[] = devices.map((d) => {
+      if (d.serialNumber !== serialNumber) return d;
+      return {
+        ...d,
+        status: 'Allocated',
+        assignedTechnicianId: tech.id,
+        assignedTechnicianName: tech.name,
+        dateIssued: '26 September 2026',
+        custodyHistory: [
+          ...d.custodyHistory,
+          {
+            id: `EVT-${serialNumber}-${d.custodyHistory.length + 1}`,
+            timestamp: '26 September 2026 · 15:32',
+            status: 'Allocated',
+            actor: 'Dispatch Supervisor (R. Naidoo)',
+            locationOrHolder: `${tech.name} (${tech.employeeCode} · Vehicle ${tech.vehicleReg})`,
+            note: `Digitally issued to technician ${tech.name}.`,
+          },
+        ],
+      };
+    });
+    setDevices(nextDevs);
+    pushStateToServer({ devices: nextDevs });
     if (currentUser) {
       updateDeviceStatusInCloud(serialNumber, {
         status: 'Allocated',
@@ -594,29 +826,29 @@ export default function App() {
   };
 
   const handleReturnDeviceToStore = (serialNumber: string, note: string) => {
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (d.serialNumber !== serialNumber) return d;
-        return {
-          ...d,
-          status: 'Available',
-          assignedTechnicianId: undefined,
-          assignedTechnicianName: undefined,
-          dateIssued: undefined,
-          custodyHistory: [
-            ...d.custodyHistory,
-            {
-              id: `EVT-${serialNumber}-${d.custodyHistory.length + 1}`,
-              timestamp: '26 September 2026 · 15:35',
-              status: 'Available',
-              actor: 'Depot Stores Clerk (K. Mahlangu)',
-              locationOrHolder: 'Central Municipal Cage · Midrand',
-              note,
-            },
-          ],
-        };
-      })
-    );
+    const nextDevs: MeterDevice[] = devices.map((d) => {
+      if (d.serialNumber !== serialNumber) return d;
+      return {
+        ...d,
+        status: 'Available',
+        assignedTechnicianId: undefined,
+        assignedTechnicianName: undefined,
+        dateIssued: undefined,
+        custodyHistory: [
+          ...d.custodyHistory,
+          {
+            id: `EVT-${serialNumber}-${d.custodyHistory.length + 1}`,
+            timestamp: '26 September 2026 · 15:35',
+            status: 'Available',
+            actor: 'Depot Stores Clerk (K. Mahlangu)',
+            locationOrHolder: 'Central Municipal Cage · Midrand',
+            note,
+          },
+        ],
+      };
+    });
+    setDevices(nextDevs);
+    pushStateToServer({ devices: nextDevs });
     if (currentUser) {
       updateDeviceStatusInCloud(serialNumber, {
         status: 'Available',
@@ -628,7 +860,9 @@ export default function App() {
   };
 
   const handleAddTechnician = (tech: Technician) => {
-    setTechnicians((prev) => [...prev, tech]);
+    const nextTechs = [...technicians, tech];
+    setTechnicians(nextTechs);
+    pushStateToServer({ technicians: nextTechs });
   };
 
   const handleSubmitFieldInstallation = (payload: {
@@ -693,48 +927,54 @@ export default function App() {
       generatedAt: `${nowStamp}:34`,
     };
 
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (d.serialNumber !== dev.serialNumber) return d;
-        return {
-          ...d,
-          status: 'Installed',
-          installedWorkOrderNumber: wo.workOrderNumber,
-          installedDate: '26 September 2026',
-          custodyHistory: [
-            ...d.custodyHistory,
-            {
-              id: `EVT-${d.serialNumber}-${d.custodyHistory.length + 1}`,
-              timestamp: nowStamp,
-              status: 'Installed',
-              actor: `${tech.name} (Voltex Field App)`,
-              locationOrHolder: `${wo.address}, ${wo.suburb} · ${wo.workOrderNumber}`,
-              workOrderNumber: wo.workOrderNumber,
-              note: `Installed on site. Old meter #${payload.oldDeviceSerialConfirmed} removed (${payload.oldMeterReading} kWh). Job Card ${newJobCardId} auto-generated.`,
-            },
-          ],
-        };
-      })
-    );
+    const nextDevs: MeterDevice[] = devices.map((d) => {
+      if (d.serialNumber !== dev.serialNumber) return d;
+      return {
+        ...d,
+        status: 'Installed',
+        installedWorkOrderNumber: wo.workOrderNumber,
+        installedDate: '26 September 2026',
+        custodyHistory: [
+          ...d.custodyHistory,
+          {
+            id: `EVT-${d.serialNumber}-${d.custodyHistory.length + 1}`,
+            timestamp: nowStamp,
+            status: 'Installed',
+            actor: `${tech.name} (Voltex Field App)`,
+            locationOrHolder: `${wo.address}, ${wo.suburb} · ${wo.workOrderNumber}`,
+            workOrderNumber: wo.workOrderNumber,
+            note: `Installed on site. Old meter #${payload.oldDeviceSerialConfirmed} removed (${payload.oldMeterReading} kWh). Job Card ${newJobCardId} auto-generated.`,
+          },
+        ],
+      };
+    });
 
-    setWorkOrders((prev) =>
-      prev.map((w) => {
-        if (w.workOrderNumber !== wo.workOrderNumber) return w;
-        return {
-          ...w,
-          status:
-            payload.installationStatus === 'Exception'
-              ? 'Exception'
-              : 'Completed',
-          completedDate: 'Submitted 09:11',
-          installedDeviceSerial: dev.serialNumber,
-          jobCardId: newJobCardId,
-        };
-      })
-    );
+    const nextWOs: WorkOrder[] = workOrders.map((w) => {
+      if (w.workOrderNumber !== wo.workOrderNumber) return w;
+      return {
+        ...w,
+        status:
+          payload.installationStatus === 'Exception'
+            ? 'Exception'
+            : 'Completed',
+        completedDate: 'Submitted 09:11',
+        installedDeviceSerial: dev.serialNumber,
+        jobCardId: newJobCardId,
+      };
+    });
 
-    setJobCards((prev) => [newJobCard, ...prev]);
+    const nextJCs = [newJobCard, ...jobCards];
+
+    setDevices(nextDevs);
+    setWorkOrders(nextWOs);
+    setJobCards(nextJCs);
     setSelectedJobCardId(newJobCardId);
+
+    pushStateToServer({
+      devices: nextDevs,
+      workOrders: nextWOs,
+      jobCards: nextJCs,
+    });
 
     if (currentUser) {
       updateDeviceStatusInCloud(dev.serialNumber, {
@@ -765,25 +1005,24 @@ export default function App() {
   const handleSubmitJobCardToMunicipality = (jobCardId: string) => {
     const targetCard = jobCards.find((j) => j.jobCardId === jobCardId);
     const submittedStamp = '26 September 2026 · 15:45:00';
-    setJobCards((prev) =>
-      prev.map((j) =>
-        j.jobCardId === jobCardId
-          ? {
-              ...j,
-              reviewStatus: 'Submitted to Municipality',
-              submittedAt: submittedStamp,
-            }
-          : j
-      )
+    const nextJCs: JobCardRecord[] = jobCards.map((j) =>
+      j.jobCardId === jobCardId
+        ? {
+            ...j,
+            reviewStatus: 'Submitted to Municipality',
+            submittedAt: submittedStamp,
+          }
+        : j
     );
+    setJobCards(nextJCs);
     if (targetCard) {
-      setWorkOrders((prev) =>
-        prev.map((w) =>
-          w.workOrderNumber === targetCard.workOrderNumber
-            ? { ...w, status: 'Submitted' }
-            : w
-        )
+      const nextWOs: WorkOrder[] = workOrders.map((w) =>
+        w.workOrderNumber === targetCard.workOrderNumber
+          ? { ...w, status: 'Submitted' }
+          : w
       );
+      setWorkOrders(nextWOs);
+      pushStateToServer({ workOrders: nextWOs, jobCards: nextJCs });
       if (currentUser) {
         updateJobCardInCloud(
           jobCardId,
@@ -799,6 +1038,8 @@ export default function App() {
           jobCardId: targetCard.jobCardId,
         });
       }
+    } else {
+      pushStateToServer({ jobCards: nextJCs });
     }
   };
 
@@ -809,23 +1050,23 @@ export default function App() {
     const readyWONums = new Set(readyCards.map((c) => c.workOrderNumber));
     const submittedStamp = '26 September 2026 · 15:45:00';
 
-    setJobCards((prev) =>
-      prev.map((j) =>
-        j.reviewStatus === 'Ready for Review'
-          ? {
-              ...j,
-              reviewStatus: 'Submitted to Municipality',
-              submittedAt: submittedStamp,
-            }
-          : j
-      )
+    const nextJCs: JobCardRecord[] = jobCards.map((j) =>
+      j.reviewStatus === 'Ready for Review'
+        ? {
+            ...j,
+            reviewStatus: 'Submitted to Municipality',
+            submittedAt: submittedStamp,
+          }
+        : j
     );
 
-    setWorkOrders((prev) =>
-      prev.map((w) =>
-        readyWONums.has(w.workOrderNumber) ? { ...w, status: 'Submitted' } : w
-      )
+    const nextWOs: WorkOrder[] = workOrders.map((w) =>
+      readyWONums.has(w.workOrderNumber) ? { ...w, status: 'Submitted' } : w
     );
+
+    setJobCards(nextJCs);
+    setWorkOrders(nextWOs);
+    pushStateToServer({ workOrders: nextWOs, jobCards: nextJCs });
 
     if (currentUser) {
       readyCards.forEach((c) => {
@@ -946,31 +1187,52 @@ export default function App() {
         />
 
         {/* Enterprise Mobile Operator Bar */}
-        <header className="bg-[#0F172A] border-b border-slate-800 px-4 h-14 flex items-center justify-between no-print shrink-0">
-          <div className="max-w-lg w-full mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
+        <header className="bg-[#0F172A] border-b border-slate-800 px-3 sm:px-4 h-14 flex items-center justify-between no-print shrink-0">
+          <div className="max-w-lg w-full mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 rounded bg-blue-600 flex items-center justify-center shrink-0">
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold tracking-tight text-white truncate">
-                  PrimeChain Field
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm font-semibold tracking-tight text-white truncate">
+                    PrimeChain Field
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-700/60 text-[10px] font-mono text-emerald-300"
+                    title="Real-Time Desktop & Mobile Sync Active"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span>LIVE</span>
+                  </span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-400 truncate">
-                  {activeTechObj.employeeCode} · {activeTechObj.name} ·{' '}
-                  {activeTechObj.vehicleReg}
-                </div>
+                <select
+                  value={loggedInTechId}
+                  onChange={(e) => setLoggedInTechId(e.target.value)}
+                  aria-label="Select active technician crew"
+                  className="bg-transparent text-[11px] font-mono text-blue-300 focus:outline-none cursor-pointer truncate max-w-[190px]"
+                >
+                  {technicians.map((t) => (
+                    <option
+                      key={t.id}
+                      value={t.id}
+                      className="bg-slate-900 text-white"
+                    >
+                      {t.employeeCode} · {t.name} ({t.vehicleReg})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <PWAInstallButton />
               <button
                 type="button"
                 onClick={() => setShowPilotModal(true)}
                 className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 cursor-pointer whitespace-nowrap"
               >
-                Role / User
+                Role / Sync
               </button>
             </div>
           </div>

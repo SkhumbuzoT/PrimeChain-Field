@@ -97,6 +97,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
 
   // Bottom navigation tab state inside the mobile app
   const [phoneTab, setPhoneTab] = useState<'jobs' | 'stock' | 'stats' | 'profile'>('jobs');
+  const [jobScopeFilter, setJobScopeFilter] = useState<'mine' | 'all'>('mine');
 
   // Selected Work Order & Meter state
   const [selectedWONumber, setSelectedWONumber] = useState<string>('WO-2264');
@@ -150,10 +151,31 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
   const activeTech =
     technicians.find((t) => t.id === selectedTechId) || technicians[0];
 
+  const isNewlyCreatedWO = (w: WorkOrder) => {
+    const match = w.workOrderNumber.match(/WO-2026-(\d+)/);
+    const num = match ? parseInt(match[1], 10) : 0;
+    return num > 8846 || w.dateAllocated.includes('Live Dispatch');
+  };
+
+  const sortNewestFirst = (list: WorkOrder[]) =>
+    [...list].sort((a, b) => {
+      const aNew = isNewlyCreatedWO(a) ? 1 : 0;
+      const bNew = isNewlyCreatedWO(b) ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      return b.workOrderNumber.localeCompare(a.workOrderNumber);
+    });
+
   const techWOs = workOrders.filter(
     (w) => w.assignedTechnicianId === activeTech.id
   );
-  const outstandingWOs = techWOs.filter((w) => w.status === 'Assigned');
+  const outstandingWOs = sortNewestFirst(
+    techWOs.filter((w) => w.status === 'Assigned')
+  );
+  const allActiveWOs = sortNewestFirst(
+    workOrders.filter((w) => w.status === 'Assigned' || w.status === 'Received')
+  );
+  const displayedWOs = jobScopeFilter === 'mine' ? outstandingWOs : allActiveWOs;
+
   const completedWOs = techWOs.filter(
     (w) => w.status === 'Completed' || w.status === 'Submitted'
   );
@@ -798,14 +820,40 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                       </div>
 
                       <div className="space-y-2.5">
-                        <div className="flex items-center justify-between text-[11px] font-mono tracking-wider text-[#94A3B8] uppercase">
-                          <span>ASSIGNED TO ME ({outstandingWOs.length})</span>
-                          <span>TAP TO START</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="inline-flex rounded-lg bg-[#13161C] border border-[#2E3440] p-0.5 text-[11px] font-mono">
+                            <button
+                              type="button"
+                              onClick={() => setJobScopeFilter('mine')}
+                              className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
+                                jobScopeFilter === 'mine'
+                                  ? 'bg-[#2563EB] text-white font-semibold'
+                                  : 'text-[#94A3B8] hover:text-white'
+                              }`}
+                            >
+                              My Queue ({outstandingWOs.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setJobScopeFilter('all')}
+                              className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
+                                jobScopeFilter === 'all'
+                                  ? 'bg-[#2563EB] text-white font-semibold'
+                                  : 'text-[#94A3B8] hover:text-white'
+                              }`}
+                            >
+                              All Active ({allActiveWOs.length})
+                            </button>
+                          </div>
+                          <span className="text-[10px] font-mono tracking-wider text-[#94A3B8] uppercase">
+                            TAP TO START
+                          </span>
                         </div>
 
-                        {outstandingWOs.map((wo) => {
+                        {displayedWOs.map((wo) => {
                           const isCurrent =
                             activeWO?.workOrderNumber === wo.workOrderNumber;
+                          const isNew = isNewlyCreatedWO(wo);
                           const timeSlot = wo.dateAllocated.includes('·')
                             ? wo.dateAllocated.split('·')[1].trim()
                             : '08:30 – 10:00';
@@ -814,17 +862,34 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                             <button
                               key={wo.workOrderNumber}
                               type="button"
-                              onClick={() => handleSelectJob(wo)}
+                              onClick={() => {
+                                if (
+                                  wo.assignedTechnicianId &&
+                                  wo.assignedTechnicianId !== activeTech.id
+                                ) {
+                                  handleTechSwitch(wo.assignedTechnicianId);
+                                }
+                                handleSelectJob(wo);
+                              }}
                               className={`w-full text-left p-3.5 rounded-xl border transition-colors cursor-pointer space-y-1.5 ${
                                 isCurrent
                                   ? 'bg-[#232936] border-[#3B82F6]'
+                                  : isNew
+                                  ? 'bg-[#172334] border-emerald-500/60 hover:border-emerald-400'
                                   : 'bg-[#161920] border-[#2E3440] hover:border-[#475569]'
                               }`}
                             >
                               <div className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-semibold text-white truncate">
-                                  {wo.customerName}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {isNew && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
+                                      NEW
+                                    </span>
+                                  )}
+                                  <span className="text-sm font-semibold text-white truncate">
+                                    {wo.customerName}
+                                  </span>
+                                </div>
                                 <span
                                   className={`text-[11px] font-medium px-2 py-0.5 rounded-md shrink-0 ${
                                     wo.workType === 'Audit'
@@ -847,8 +912,11 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                                 <span className="text-[#93C5FD]">
                                   {wo.workOrderNumber}
                                 </span>
-                                <span className="text-[#CBD5E1]">
-                                  {timeSlot}
+                                <span className="text-[#CBD5E1] truncate max-w-[170px]">
+                                  {jobScopeFilter === 'all' &&
+                                  wo.assignedTechnicianName
+                                    ? `${wo.assignedTechnicianName} · ${timeSlot}`
+                                    : timeSlot}
                                 </span>
                               </div>
                             </button>
