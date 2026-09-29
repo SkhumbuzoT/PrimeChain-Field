@@ -57,6 +57,7 @@ import {
   updateWorkOrderInCloud,
   syncJobCardToCloud,
   updateJobCardInCloud,
+  updateJobCardPhotosInCloud,
 } from './firebase';
 
 const STORAGE_KEYS = {
@@ -162,32 +163,95 @@ export default function App() {
     incomingList: JobCardRecord[],
     existingList: JobCardRecord[]
   ): JobCardRecord[] => {
-    const existingMap = new Map<string, JobCardRecord>();
-    existingList.forEach((jc) => existingMap.set(jc.jobCardId, jc));
-    return incomingList.map((jc) => {
-      const prev = existingMap.get(jc.jobCardId);
-      if (!prev) return jc;
-      const hasCustomOld = prev.photos?.oldMeterUrl?.startsWith('data:image');
-      const hasCustomNew = prev.photos?.newMeterUrl?.startsWith('data:image');
-      const hasCustomSite =
-        prev.photos?.installationSiteUrl?.startsWith('data:image');
+    const byId = new Map<string, JobCardRecord>();
+    const byWo = new Map<string, JobCardRecord>();
+    existingList.forEach((jc) => {
+      byId.set(jc.jobCardId, jc);
+      if (jc.workOrderNumber) byWo.set(jc.workOrderNumber, jc);
+    });
+    const combined = incomingList.map((jc) => {
+      const prev = byId.get(jc.jobCardId) || byWo.get(jc.workOrderNumber);
+      const incOld = jc.photos?.oldMeterUrl || '';
+      const incNew = jc.photos?.newMeterUrl || '';
+      const incSite = jc.photos?.installationSiteUrl || '';
+
+      const prevOld = prev?.photos?.oldMeterUrl || '';
+      const prevNew = prev?.photos?.newMeterUrl || '';
+      const prevSite = prev?.photos?.installationSiteUrl || '';
+
+      const oldMeterUrl = incOld.startsWith('data:image')
+        ? incOld
+        : prevOld.startsWith('data:image')
+        ? prevOld
+        : incOld || prevOld || DEFAULT_PHOTOS.oldMeterUrl;
+
+      const newMeterUrl = incNew.startsWith('data:image')
+        ? incNew
+        : prevNew.startsWith('data:image')
+        ? prevNew
+        : incNew || prevNew || DEFAULT_PHOTOS.newMeterUrl;
+
+      const installationSiteUrl = incSite.startsWith('data:image')
+        ? incSite
+        : prevSite.startsWith('data:image')
+        ? prevSite
+        : newMeterUrl.startsWith('data:image')
+        ? newMeterUrl
+        : incSite || prevSite || DEFAULT_PHOTOS.installationSiteUrl;
+
       return {
         ...jc,
         photos: {
-          oldMeterUrl: hasCustomOld
-            ? prev.photos.oldMeterUrl
-            : jc.photos?.oldMeterUrl || DEFAULT_PHOTOS.oldMeterUrl,
-          newMeterUrl: hasCustomNew
-            ? prev.photos.newMeterUrl
-            : jc.photos?.newMeterUrl || DEFAULT_PHOTOS.newMeterUrl,
-          installationSiteUrl: hasCustomSite
-            ? prev.photos.installationSiteUrl
-            : jc.photos?.installationSiteUrl ||
-              DEFAULT_PHOTOS.installationSiteUrl,
+          oldMeterUrl,
+          newMeterUrl,
+          installationSiteUrl,
         },
       };
     });
+
+    // Sort job cards so cards with real camera photos or newly generated IDs appear first
+    return [...combined].sort((a, b) => {
+      const aHasCamera =
+        a.photos?.oldMeterUrl?.startsWith('data:image') ||
+        a.photos?.newMeterUrl?.startsWith('data:image')
+          ? 1
+          : 0;
+      const bHasCamera =
+        b.photos?.oldMeterUrl?.startsWith('data:image') ||
+        b.photos?.newMeterUrl?.startsWith('data:image')
+          ? 1
+          : 0;
+      if (aHasCamera !== bHasCamera) return bHasCamera - aHasCamera;
+      const aMatch = a.jobCardId.match(/JC-2026-0(\d+)/);
+      const bMatch = b.jobCardId.match(/JC-2026-0(\d+)/);
+      const aNum = aMatch ? parseInt(aMatch[1], 10) : 0;
+      const bNum = bMatch ? parseInt(bMatch[1], 10) : 0;
+      if (aNum > 903 || bNum > 903) return bNum - aNum;
+      return 0;
+    });
   };
+
+  // Auto-select the latest Job Card that has real captured camera photos or was newly generated
+  useEffect(() => {
+    const defaultIds = new Set([
+      'JC-401930557',
+      'JC-2026-0901',
+      'JC-2026-0902',
+      'JC-2026-0903',
+    ]);
+    if (defaultIds.has(selectedJobCardId)) {
+      const cardWithCamera = jobCards.find(
+        (jc) =>
+          jc.photos?.oldMeterUrl?.startsWith('data:image') ||
+          jc.photos?.newMeterUrl?.startsWith('data:image') ||
+          !defaultIds.has(jc.jobCardId)
+      );
+      if (cardWithCamera && cardWithCamera.jobCardId !== selectedJobCardId) {
+        setSelectedJobCardId(cardWithCamera.jobCardId);
+      }
+    }
+  }, [jobCards, selectedJobCardId]);
+
   const mergeByKey = <T,>(
     remoteList: T[],
     localList: T[],
@@ -286,12 +350,16 @@ export default function App() {
             jobCards,
             (j) => j.jobCardId
           );
+          const mergedJCsWithPhotos = preserveRealJobCardPhotos(
+            jcMerge.merged,
+            jobCards
+          );
 
           lastVersion = data.version;
           setDevices(devMerge.merged);
           setWorkOrders(woMerge.merged);
           setTechnicians(techMerge.merged);
-          setJobCards(jcMerge.merged);
+          setJobCards(mergedJCsWithPhotos);
 
           if (
             devMerge.localOnly.length > 0 ||
@@ -303,7 +371,7 @@ export default function App() {
               devices: devMerge.merged,
               workOrders: woMerge.merged,
               technicians: techMerge.merged,
-              jobCards: jcMerge.merged,
+              jobCards: mergedJCsWithPhotos,
             });
           }
           return;
@@ -314,7 +382,11 @@ export default function App() {
           if (Array.isArray(data.devices)) setDevices(data.devices);
           if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
           if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
-          if (Array.isArray(data.jobCards)) setJobCards(data.jobCards);
+          if (Array.isArray(data.jobCards)) {
+            setJobCards((prev) =>
+              preserveRealJobCardPhotos(data.jobCards, prev)
+            );
+          }
         }
       } catch {
         // Ignore network errors when offline
@@ -336,7 +408,11 @@ export default function App() {
             if (Array.isArray(data.devices)) setDevices(data.devices);
             if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
             if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
-            if (Array.isArray(data.jobCards)) setJobCards(data.jobCards);
+            if (Array.isArray(data.jobCards)) {
+              setJobCards((prev) =>
+                preserveRealJobCardPhotos(data.jobCards, prev)
+              );
+            }
           }
         } catch {
           // ignore malformed event
@@ -514,6 +590,14 @@ export default function App() {
         if (snap.empty) return;
         const cloudJCs: JobCardRecord[] = snap.docs.map((docSnap) => {
           const j = docSnap.data();
+          const oldMeterUrl =
+            typeof j.oldMeterPhotoUrl === 'string' && j.oldMeterPhotoUrl.trim()
+              ? j.oldMeterPhotoUrl
+              : DEFAULT_PHOTOS.oldMeterUrl;
+          const newMeterUrl =
+            typeof j.newMeterPhotoUrl === 'string' && j.newMeterPhotoUrl.trim()
+              ? j.newMeterPhotoUrl
+              : DEFAULT_PHOTOS.newMeterUrl;
           return {
             jobCardId: j.jobCardId,
             workOrderNumber: j.workOrderNumber,
@@ -538,7 +622,15 @@ export default function App() {
             installationDate: j.installationDate,
             gpsCoordinates: j.gpsCoordinates,
             fieldNotes: j.fieldNotes,
-            photos: DEFAULT_PHOTOS,
+            photos: {
+              oldMeterUrl,
+              newMeterUrl,
+              installationSiteUrl: newMeterUrl.startsWith('data:image')
+                ? newMeterUrl
+                : oldMeterUrl.startsWith('data:image')
+                ? oldMeterUrl
+                : DEFAULT_PHOTOS.installationSiteUrl,
+            },
             reviewStatus: j.reviewStatus,
             generatedAt: j.generatedAt,
             submittedAt: j.submittedAt || undefined,
@@ -554,6 +646,24 @@ export default function App() {
           if (localOnly.length > 0) {
             localOnly.forEach((jc) => syncJobCardToCloud(jc, uid));
           }
+          // Also upgrade any cloud job card that was missing camera photos in Firestore
+          const cloudMap = new Map(cloudJCs.map((c) => [c.jobCardId, c]));
+          withPreservedPhotos.forEach((jc) => {
+            const c = cloudMap.get(jc.jobCardId);
+            if (
+              c &&
+              ((jc.photos.oldMeterUrl.startsWith('data:image') &&
+                !c.photos.oldMeterUrl.startsWith('data:image')) ||
+                (jc.photos.newMeterUrl.startsWith('data:image') &&
+                  !c.photos.newMeterUrl.startsWith('data:image')))
+            ) {
+              updateJobCardPhotosInCloud(
+                jc.jobCardId,
+                jc.photos.oldMeterUrl,
+                jc.photos.newMeterUrl
+              );
+            }
+          });
           pushStateToServer({ jobCards: withPreservedPhotos });
           return withPreservedPhotos;
         });
@@ -925,13 +1035,18 @@ export default function App() {
       devices.find((d) => d.serialNumber === payload.newDeviceSerial) ||
       devices[0];
 
+    const existingCardForWO = jobCards.find(
+      (jc) => jc.workOrderNumber === wo.workOrderNumber
+    );
     const maxJcNum = jobCards.reduce((max, jc) => {
       const match = jc.jobCardId.match(/JC-2026-0(\d+)/);
       const n = match ? parseInt(match[1], 10) : 0;
       return !isNaN(n) && n > max ? n : max;
     }, 903);
     const nextJcNum = maxJcNum + 1;
-    const newJobCardId = `JC-2026-0${nextJcNum}`;
+    const newJobCardId = existingCardForWO
+      ? existingCardForWO.jobCardId
+      : `JC-2026-0${nextJcNum}`;
     const now = new Date();
     const datePart = now.toLocaleDateString('en-GB');
     const timePart = now.toLocaleTimeString('en-GB', {
@@ -1005,7 +1120,14 @@ export default function App() {
       };
     });
 
-    const nextJCs = [newJobCard, ...jobCards];
+    const nextJCs = [
+      newJobCard,
+      ...jobCards.filter(
+        (jc) =>
+          jc.jobCardId !== newJobCardId &&
+          jc.workOrderNumber !== wo.workOrderNumber
+      ),
+    ];
 
     setDevices(nextDevs);
     setWorkOrders(nextWOs);
@@ -1042,6 +1164,165 @@ export default function App() {
     }
 
     return newJobCard;
+  };
+
+  const handleUpdateJobCardPhoto = (
+    jobCardId: string,
+    which: 'old' | 'new',
+    dataUrl: string
+  ) => {
+    let updatedCard: JobCardRecord | undefined;
+    const nextJCs: JobCardRecord[] = jobCards.map((jc) => {
+      if (jc.jobCardId !== jobCardId) return jc;
+      const nextPhotos = {
+        ...jc.photos,
+        oldMeterUrl: which === 'old' ? dataUrl : jc.photos.oldMeterUrl,
+        newMeterUrl: which === 'new' ? dataUrl : jc.photos.newMeterUrl,
+        installationSiteUrl:
+          which === 'new' ? dataUrl : jc.photos.installationSiteUrl,
+      };
+      updatedCard = { ...jc, photos: nextPhotos };
+      return updatedCard;
+    });
+    setJobCards(nextJCs);
+    pushStateToServer({ jobCards: nextJCs });
+    if (currentUser && updatedCard) {
+      updateJobCardPhotosInCloud(
+        jobCardId,
+        updatedCard.photos.oldMeterUrl,
+        updatedCard.photos.newMeterUrl
+      );
+    }
+  };
+
+  // Immediately attach captured field camera photo (1 or 2) to the Work Order's Job Card so Pages 2 & 3 always show real photos
+  const handleLiveFieldPhotoCapture = (
+    workOrderNumber: string,
+    which: 'old' | 'new',
+    dataUrl: string,
+    context?: {
+      technicianId?: string;
+      newDeviceSerial?: string;
+      oldDeviceSerial?: string;
+      oldMeterReading?: number;
+      newMeterReading?: number;
+      fieldNotes?: string;
+      gpsCoordinates?: string;
+    }
+  ) => {
+    const wo =
+      workOrders.find((w) => w.workOrderNumber === workOrderNumber) ||
+      workOrders[0];
+    const tech =
+      technicians.find(
+        (t) => t.id === (context?.technicianId || wo.assignedTechnicianId || loggedInTechId)
+      ) || technicians[0];
+    const dev =
+      devices.find((d) => d.serialNumber === context?.newDeviceSerial) ||
+      devices.find(
+        (d) => d.assignedTechnicianId === tech.id && d.status === 'Allocated'
+      ) ||
+      devices[0];
+
+    const existingCard = jobCards.find(
+      (jc) => jc.workOrderNumber === wo.workOrderNumber
+    );
+
+    if (existingCard) {
+      const updatedCard: JobCardRecord = {
+        ...existingCard,
+        oldDeviceSerial: context?.oldDeviceSerial || existingCard.oldDeviceSerial,
+        oldMeterReading:
+          context?.oldMeterReading !== undefined
+            ? context.oldMeterReading
+            : existingCard.oldMeterReading,
+        newMeterReading:
+          context?.newMeterReading !== undefined
+            ? context.newMeterReading
+            : existingCard.newMeterReading,
+        fieldNotes: context?.fieldNotes || existingCard.fieldNotes,
+        photos: {
+          ...existingCard.photos,
+          oldMeterUrl:
+            which === 'old' ? dataUrl : existingCard.photos.oldMeterUrl,
+          newMeterUrl:
+            which === 'new' ? dataUrl : existingCard.photos.newMeterUrl,
+          installationSiteUrl:
+            which === 'new'
+              ? dataUrl
+              : existingCard.photos.installationSiteUrl.startsWith('data:image')
+              ? existingCard.photos.installationSiteUrl
+              : dataUrl,
+        },
+      };
+      const nextJCs = [
+        updatedCard,
+        ...jobCards.filter((jc) => jc.jobCardId !== existingCard.jobCardId),
+      ];
+      setJobCards(nextJCs);
+      setSelectedJobCardId(existingCard.jobCardId);
+      pushStateToServer({ jobCards: nextJCs });
+      if (currentUser) {
+        syncJobCardToCloud(updatedCard, currentUser.uid);
+      }
+      return;
+    }
+
+    // Create a live Job Card record for this Work Order immediately so Pages 2 & 3 have the captured photo right away
+    const maxJcNum = jobCards.reduce((max, jc) => {
+      const match = jc.jobCardId.match(/JC-2026-0(\d+)/);
+      const n = match ? parseInt(match[1], 10) : 0;
+      return !isNaN(n) && n > max ? n : max;
+    }, 903);
+    const newJobCardId = `JC-2026-0${maxJcNum + 1}`;
+    const now = new Date();
+    const nowStamp = `${now.toLocaleDateString('en-GB')} · ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+
+    const newCard: JobCardRecord = {
+      jobCardId: newJobCardId,
+      workOrderNumber: wo.workOrderNumber,
+      customerName: wo.customerName,
+      accountNumber: wo.accountNumber,
+      address: wo.address,
+      suburb: wo.suburb,
+      ward: wo.ward,
+      workType: wo.workType,
+      technicianId: tech.id,
+      technicianName: tech.name,
+      employeeCode: tech.employeeCode,
+      oldDeviceSerial: context?.oldDeviceSerial || wo.oldDeviceSerial,
+      oldDeviceMake: wo.oldDeviceMake,
+      oldMeterReading:
+        context?.oldMeterReading !== undefined
+          ? context.oldMeterReading
+          : wo.existingReading,
+      newDeviceSerial: dev.serialNumber,
+      newDeviceModel: dev.model,
+      newDeviceManufacturer: dev.manufacturer,
+      newMeterReading: context?.newMeterReading || 0,
+      sealNumber: dev.sealNumber || 'SL-90412',
+      installationStatus: 'Completed',
+      installationDate: nowStamp,
+      gpsCoordinates: context?.gpsCoordinates || '-26.2485° S, 27.8540° E',
+      fieldNotes:
+        context?.fieldNotes ||
+        `New ${dev.model} (#${dev.serialNumber}) installed. Old ${wo.oldDeviceMake} removed.`,
+      photos: {
+        oldMeterUrl: which === 'old' ? dataUrl : DEFAULT_PHOTOS.oldMeterUrl,
+        newMeterUrl: which === 'new' ? dataUrl : DEFAULT_PHOTOS.newMeterUrl,
+        installationSiteUrl: dataUrl,
+      },
+      reviewStatus: 'Ready for Review',
+      generatedAt: `${nowStamp}:00`,
+    };
+
+    const nextJCs = [newCard, ...jobCards];
+    setJobCards(nextJCs);
+    setSelectedJobCardId(newJobCardId);
+    pushStateToServer({ jobCards: nextJCs });
+    if (currentUser) {
+      syncJobCardToCloud(newCard, currentUser.uid);
+    }
   };
 
   const handleSubmitJobCardToMunicipality = (jobCardId: string) => {
@@ -1295,6 +1576,7 @@ export default function App() {
             isCloudSynced={isCloudSynced}
             onExitAndroidPilotMode={() => handleSelectRoleAndUser('admin')}
             onSubmitInstallation={handleSubmitFieldInstallation}
+            onLivePhotoCapture={handleLiveFieldPhotoCapture}
             onInspectJobCard={handleInspectJobCard}
           />
         </main>
@@ -1699,6 +1981,7 @@ export default function App() {
                   handleSelectRoleAndUser('technician', loggedInTechId)
                 }
                 onSubmitInstallation={handleSubmitFieldInstallation}
+                onLivePhotoCapture={handleLiveFieldPhotoCapture}
                 onInspectJobCard={handleInspectJobCard}
               />
             )}
@@ -1710,6 +1993,7 @@ export default function App() {
                 onSelectJobCard={(id) => setSelectedJobCardId(id)}
                 onSubmitToMunicipality={handleSubmitJobCardToMunicipality}
                 onBatchSubmitAll={handleBatchSubmitAllJobCards}
+                onUpdateJobCardPhoto={handleUpdateJobCardPhoto}
               />
             )}
           </div>

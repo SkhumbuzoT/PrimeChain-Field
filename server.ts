@@ -98,6 +98,68 @@ async function startServer() {
     });
   });
 
+  // Helper to ensure real captured camera photos (data:image/...) on the server are never overwritten by generic placeholder URLs
+  function mergeJobCardsPreservingPhotos(
+    incoming: Record<string, any>[],
+    existing: unknown[] | null
+  ): Record<string, any>[] {
+    if (!Array.isArray(existing) || existing.length === 0) return incoming;
+    const byId = new Map<string, Record<string, any>>();
+    const byWo = new Map<string, Record<string, any>>();
+    for (const item of existing as Record<string, any>[]) {
+      if (item && typeof item.jobCardId === 'string') {
+        byId.set(item.jobCardId, item);
+      }
+      if (item && typeof item.workOrderNumber === 'string') {
+        byWo.set(item.workOrderNumber, item);
+      }
+    }
+
+    return incoming.map((jc) => {
+      if (!jc || typeof jc !== 'object') return jc;
+      const prev =
+        byId.get(jc.jobCardId) || byWo.get(jc.workOrderNumber);
+      if (!prev || !prev.photos) return jc;
+
+      const incomingOld = jc.photos?.oldMeterUrl || '';
+      const incomingNew = jc.photos?.newMeterUrl || '';
+      const incomingSite = jc.photos?.installationSiteUrl || '';
+
+      const prevOld = prev.photos?.oldMeterUrl || '';
+      const prevNew = prev.photos?.newMeterUrl || '';
+      const prevSite = prev.photos?.installationSiteUrl || '';
+
+      const oldMeterUrl = incomingOld.startsWith('data:image')
+        ? incomingOld
+        : prevOld.startsWith('data:image')
+        ? prevOld
+        : incomingOld || prevOld;
+
+      const newMeterUrl = incomingNew.startsWith('data:image')
+        ? incomingNew
+        : prevNew.startsWith('data:image')
+        ? prevNew
+        : incomingNew || prevNew;
+
+      const installationSiteUrl = incomingSite.startsWith('data:image')
+        ? incomingSite
+        : prevSite.startsWith('data:image')
+        ? prevSite
+        : newMeterUrl.startsWith('data:image')
+        ? newMeterUrl
+        : incomingSite || prevSite;
+
+      return {
+        ...jc,
+        photos: {
+          oldMeterUrl,
+          newMeterUrl,
+          installationSiteUrl,
+        },
+      };
+    });
+  }
+
   // Update shared operational state from either Desktop or Phone
   app.post('/api/sync', (req, res) => {
     const { devices, workOrders, technicians, jobCards, reset } = req.body || {};
@@ -131,7 +193,10 @@ async function startServer() {
       changed = true;
     }
     if (Array.isArray(jobCards)) {
-      sharedState.jobCards = jobCards;
+      sharedState.jobCards = mergeJobCardsPreservingPhotos(
+        jobCards,
+        sharedState.jobCards
+      );
       changed = true;
     }
 

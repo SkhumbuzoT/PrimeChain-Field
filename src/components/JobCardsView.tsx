@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Printer,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   Layers,
   SlidersHorizontal,
+  Camera,
 } from 'lucide-react';
 import { JobCardRecord } from '../types';
 
@@ -17,6 +18,11 @@ interface JobCardsViewProps {
   onSelectJobCard: (jobCardId: string) => void;
   onSubmitToMunicipality: (jobCardId: string) => void;
   onBatchSubmitAll: () => number;
+  onUpdateJobCardPhoto?: (
+    jobCardId: string,
+    which: 'old' | 'new',
+    dataUrl: string
+  ) => void;
 }
 
 /**
@@ -45,6 +51,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
   onSelectJobCard,
   onSubmitToMunicipality,
   onBatchSubmitAll,
+  onUpdateJobCardPhoto,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<
@@ -56,6 +63,66 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
   const [pageView, setPageView] = useState<'all' | 'sheet' | 'photos'>('all');
   const [showTemplateSettings, setShowTemplateSettings] = useState(false);
 
+  const page2CameraInputRef = useRef<HTMLInputElement | null>(null);
+  const page3CameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  const compressDirectPhoto = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const rawDataUrl = typeof reader.result === 'string' ? reader.result : '';
+        if (!rawDataUrl) {
+          resolve('');
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 720;
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(rawDataUrl);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.68));
+        };
+        img.onerror = () => resolve(rawDataUrl);
+        img.src = rawDataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+
+  const handleDirectPagePhotoChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    which: 'old' | 'new'
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeCard || !onUpdateJobCardPhoto) return;
+    const compressed = await compressDirectPhoto(file);
+    if (compressed) {
+      onUpdateJobCardPhoto(activeCard.jobCardId, which, compressed);
+      setNotice(
+        `Updated ${
+          which === 'old' ? 'Page 2 (Old Meter Photo)' : 'Page 3 (New Meter Photo)'
+        } on ${activeCard.jobCardId} and saved to database.`
+      );
+    }
+    e.target.value = '';
+  };
+
   // Contractor configuration defaults from the Python CONFIG dictionary
   const [companyName, setCompanyName] = useState('LIGHTUP ENTERPRISE');
   const [companyPhone, setCompanyPhone] = useState('0798561362');
@@ -63,8 +130,16 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
   const [installerOverride, setInstallerOverride] = useState('');
   const [otherExplainMode, setOtherExplainMode] = useState<'POSTPAID' | 'PREPAID'>('POSTPAID');
 
+  // Prefer the selected card; if none or default sample is selected while a card with real camera photos exists, prioritize real photos
+  const cardWithRealPhotos = jobCards.find(
+    (j) =>
+      j.photos?.oldMeterUrl?.startsWith('data:') ||
+      j.photos?.newMeterUrl?.startsWith('data:')
+  );
   const activeCard =
-    jobCards.find((j) => j.jobCardId === selectedJobCardId) || jobCards[0];
+    jobCards.find((j) => j.jobCardId === selectedJobCardId) ||
+    cardWithRealPhotos ||
+    jobCards[0];
 
   useEffect(() => {
     if (selectedJobCardId) {
@@ -317,6 +392,9 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
             {filteredCards.map((jc) => {
               const isSelected = activeCard?.jobCardId === jc.jobCardId;
               const cleanAcc = jc.accountNumber.replace(/^ACC-|^MPT-/, '');
+              const hasRealCameraPhoto =
+                Boolean(jc.photos?.oldMeterUrl?.startsWith('data:')) ||
+                Boolean(jc.photos?.newMeterUrl?.startsWith('data:'));
               return (
                 <button
                   key={jc.jobCardId}
@@ -343,12 +421,19 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                     </span>
                   </div>
 
+                  {hasRealCameraPhoto && (
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px] font-semibold">
+                      <Camera className="w-3 h-3" />
+                      <span>LIVE CAPTURED CAMERA PHOTOS ATTACHED</span>
+                    </div>
+                  )}
+
                   <div className="text-xs font-medium text-slate-900">
                     {jc.address}, {jc.suburb}
                   </div>
 
                   <div className="text-[11px] text-slate-600 font-mono">
-                    Acc: {cleanAcc} · Old #{jc.oldDeviceSerial} → New #
+                    Acc: {cleanAcc} · WO: {jc.workOrderNumber} · Old #{jc.oldDeviceSerial} → New #
                     {jc.newDeviceSerial}
                   </div>
 
@@ -925,13 +1010,58 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                  ============================================================= */}
               {(pageView === 'all' || pageView === 'photos') && (
                 <>
+                  {/* Hidden file inputs so user can also capture/replace Photo 1 or Photo 2 directly on Page 2 & Page 3 */}
+                  <input
+                    ref={page2CameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleDirectPagePhotoChange(e, 'old')}
+                    className="hidden"
+                  />
+                  <input
+                    ref={page3CameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleDirectPagePhotoChange(e, 'new')}
+                    className="hidden"
+                  />
+
                   {/* PAGE 2: OLD METER IMAGE (Centered on A4 white sheet) */}
                   <section className="print-page-break bg-white border border-slate-300 shadow-sm p-6 sm:p-10 text-black max-w-[820px] mx-auto flex flex-col justify-between min-h-[680px]">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-xs font-mono text-slate-600">
-                      <span>
-                        MERGED PHOTO ATTACHMENT — PAGE 2 OF 3 (OldMeterImage)
-                      </span>
-                      <span>ACCOUNT: {mappedAccount}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 text-xs font-mono text-slate-600">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>
+                          MERGED PHOTO ATTACHMENT — PAGE 2 OF 3 (OldMeterImage)
+                        </span>
+                        {activeCard.photos.oldMeterUrl?.startsWith('data:') ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] no-print">
+                            ✓ LIVE CAPTURED PHOTO
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold text-[10px] no-print">
+                            SAMPLE ARCHIVE PHOTO
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {onUpdateJobCardPhoto && (
+                          <button
+                            type="button"
+                            onClick={() => page2CameraInputRef.current?.click()}
+                            className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-sans font-medium text-[11px] flex items-center gap-1 cursor-pointer no-print"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>
+                              {activeCard.photos.oldMeterUrl?.startsWith('data:')
+                                ? 'Retake / Replace Photo 1'
+                                : 'Capture / Upload Photo 1'}
+                            </span>
+                          </button>
+                        )}
+                        <span>ACCOUNT: {mappedAccount}</span>
+                      </div>
                     </div>
 
                     <div className="my-auto py-6 flex flex-col items-center justify-center">
@@ -957,11 +1087,38 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
 
                   {/* PAGE 3: NEW METER IMAGE (Centered on A4 white sheet) */}
                   <section className="print-page-break bg-white border border-slate-300 shadow-sm p-6 sm:p-10 text-black max-w-[820px] mx-auto flex flex-col justify-between min-h-[680px]">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-xs font-mono text-slate-600">
-                      <span>
-                        MERGED PHOTO ATTACHMENT — PAGE 3 OF 3 (NewMeterImage)
-                      </span>
-                      <span>ACCOUNT: {mappedAccount}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 text-xs font-mono text-slate-600">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>
+                          MERGED PHOTO ATTACHMENT — PAGE 3 OF 3 (NewMeterImage)
+                        </span>
+                        {activeCard.photos.newMeterUrl?.startsWith('data:') ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] no-print">
+                            ✓ LIVE CAPTURED PHOTO
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold text-[10px] no-print">
+                            SAMPLE ARCHIVE PHOTO
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {onUpdateJobCardPhoto && (
+                          <button
+                            type="button"
+                            onClick={() => page3CameraInputRef.current?.click()}
+                            className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-sans font-medium text-[11px] flex items-center gap-1 cursor-pointer no-print"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>
+                              {activeCard.photos.newMeterUrl?.startsWith('data:')
+                                ? 'Retake / Replace Photo 2'
+                                : 'Capture / Upload Photo 2'}
+                            </span>
+                          </button>
+                        )}
+                        <span>ACCOUNT: {mappedAccount}</span>
+                      </div>
                     </div>
 
                     <div className="my-auto py-6 flex flex-col items-center justify-center">

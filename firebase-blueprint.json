@@ -360,6 +360,16 @@
           "minLength": 0,
           "maxLength": 500
         },
+        "oldMeterPhotoUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 400000
+        },
+        "newMeterPhotoUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 400000
+        },
         "reviewStatus": {
           "type": "string",
           "enum": ["Ready for Review", "Submitted to Municipality", "Flagged Exception"]
@@ -412,6 +422,8 @@
         "installationDate",
         "gpsCoordinates",
         "fieldNotes",
+        "oldMeterPhotoUrl",
+        "newMeterPhotoUrl",
         "reviewStatus",
         "generatedAt",
         "submittedAt",

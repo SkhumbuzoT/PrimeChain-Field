@@ -34,6 +34,7 @@ interface FieldCaptureViewProps {
   technicians: Technician[];
   workOrders: WorkOrder[];
   devices: MeterDevice[];
+  jobCards?: JobCardRecord[];
   initialHint?: string;
   userRole?: 'admin' | 'technician';
   loggedInTechId?: string;
@@ -63,6 +64,20 @@ interface FieldCaptureViewProps {
       installationSiteUrl: string;
     };
   }) => JobCardRecord;
+  onLivePhotoCapture?: (
+    workOrderNumber: string,
+    which: 'old' | 'new',
+    dataUrl: string,
+    context?: {
+      technicianId?: string;
+      newDeviceSerial?: string;
+      oldDeviceSerial?: string;
+      oldMeterReading?: number;
+      newMeterReading?: number;
+      fieldNotes?: string;
+      gpsCoordinates?: string;
+    }
+  ) => JobCardRecord | undefined;
   onInspectJobCard: (jobCardId: string) => void;
 }
 
@@ -70,6 +85,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
   technicians,
   workOrders,
   devices,
+  jobCards = [],
   initialHint,
   userRole = 'technician',
   loggedInTechId = 'TECH-01',
@@ -79,6 +95,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
   onExitAndroidPilotMode,
   isCloudSynced = false,
   onSubmitInstallation,
+  onLivePhotoCapture,
   onInspectJobCard,
 }) => {
   const isTechnicianOnly = userRole === 'technician' || isAndroidPilotMode;
@@ -192,6 +209,30 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
     outstandingWOs[0] ||
     workOrders[0];
 
+  // Whenever the active Work Order has an existing Job Card with real captured photos (data:image/...), keep them loaded in state
+  useEffect(() => {
+    if (!activeWO) return;
+    const existingJC = jobCards.find(
+      (jc) => jc.workOrderNumber === activeWO.workOrderNumber
+    );
+    if (existingJC) {
+      if (
+        existingJC.photos.oldMeterUrl?.startsWith('data:') &&
+        !customOldPhotoUrl
+      ) {
+        setCustomOldPhotoUrl(existingJC.photos.oldMeterUrl);
+        setOldPhotoCaptured(true);
+      }
+      if (
+        existingJC.photos.newMeterUrl?.startsWith('data:') &&
+        !customNewPhotoUrl
+      ) {
+        setCustomNewPhotoUrl(existingJC.photos.newMeterUrl);
+        setNewPhotoCaptured(true);
+      }
+    }
+  }, [activeWO?.workOrderNumber, jobCards]);
+
   // Acquire real device GPS when available
   const acquireDeviceGps = () => {
     if (!('geolocation' in navigator)) return;
@@ -222,7 +263,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
         }
         const img = new Image();
         img.onload = () => {
-          const maxDim = 850;
+          const maxDim = 720;
           let { width, height } = img;
           if (width > maxDim || height > maxDim) {
             if (width > height) {
@@ -242,7 +283,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.72);
+          const compressed = canvas.toDataURL('image/jpeg', 0.68);
           resolve(compressed);
         };
         img.onerror = () => resolve(rawDataUrl);
@@ -251,7 +292,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
       reader.readAsDataURL(file);
     });
 
-  // Handle native camera file input change
+  // Handle native camera file input change — immediately saves photo to Job Card (Page 2 or Page 3) & syncs to database
   const handleCameraFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     which: 'old' | 'new'
@@ -266,6 +307,31 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
       } else {
         setCustomNewPhotoUrl(compressedDataUrl);
         setNewPhotoCaptured(true);
+      }
+
+      if (activeWO && onLivePhotoCapture) {
+        const parsedOldReading =
+          parseFloat(oldReadingInput.replace(/\s+/g, '')) ||
+          activeWO.existingReading;
+        const parsedNewReading =
+          parseFloat(newReadingInput.replace(/[^\d.]/g, '')) || 0.0;
+        const syncedCard = onLivePhotoCapture(
+          activeWO.workOrderNumber,
+          which,
+          compressedDataUrl,
+          {
+            technicianId: activeTech.id,
+            newDeviceSerial: newSerialInput.trim(),
+            oldDeviceSerial: oldSerialInput.trim() || activeWO.oldDeviceSerial,
+            oldMeterReading: parsedOldReading,
+            newMeterReading: parsedNewReading,
+            fieldNotes: fieldNotesInput.trim(),
+            gpsCoordinates: liveGpsCoords,
+          }
+        );
+        if (syncedCard) {
+          setLastSubmittedCard(syncedCard);
+        }
       }
     }
     e.target.value = '';
@@ -320,10 +386,19 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
     setOldSerialInput(wo.oldDeviceSerial);
     setOldReadingInput(String(wo.existingReading));
     setNewReadingInput('0.00');
-    setCustomOldPhotoUrl(null);
-    setCustomNewPhotoUrl(null);
-    setOldPhotoCaptured(false);
-    setNewPhotoCaptured(false);
+    const existingJC = jobCards.find(
+      (jc) => jc.workOrderNumber === wo.workOrderNumber
+    );
+    const existingOldPhoto = existingJC?.photos.oldMeterUrl?.startsWith('data:')
+      ? existingJC.photos.oldMeterUrl
+      : null;
+    const existingNewPhoto = existingJC?.photos.newMeterUrl?.startsWith('data:')
+      ? existingJC.photos.newMeterUrl
+      : null;
+    setCustomOldPhotoUrl(existingOldPhoto);
+    setCustomNewPhotoUrl(existingNewPhoto);
+    setOldPhotoCaptured(Boolean(existingOldPhoto));
+    setNewPhotoCaptured(Boolean(existingNewPhoto));
     if (techAllocatedDevices[0]) {
       setNewSerialInput(techAllocatedDevices[0].serialNumber);
     }
@@ -363,9 +438,10 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
     if (!activeWO) return;
 
     const cleanSerial = newSerialInput.trim();
-    const targetDevice = devices.find(
-      (d) => d.serialNumber.toLowerCase() === cleanSerial.toLowerCase()
-    );
+    const targetDevice =
+      devices.find(
+        (d) => d.serialNumber.toLowerCase() === cleanSerial.toLowerCase()
+      ) || techAllocatedDevices[0];
 
     if (!targetDevice) {
       setCustodyError(
@@ -374,8 +450,13 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
       return;
     }
 
+    const isAlreadyInstalledOnThisJob =
+      targetDevice.status === 'Installed' &&
+      (targetDevice.installedWorkOrderNumber === activeWO.workOrderNumber ||
+        targetDevice.assignedTechnicianId === activeTech.id);
+
     if (
-      targetDevice.status !== 'Allocated' ||
+      (targetDevice.status !== 'Allocated' && !isAlreadyInstalledOnThisJob) ||
       targetDevice.assignedTechnicianId !== activeTech.id
     ) {
       const holderInfo =
@@ -402,6 +483,20 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
     const confirmedOldSerial =
       oldSerialInput.trim() || activeWO.oldDeviceSerial;
 
+    const existingJC = jobCards.find(
+      (jc) => jc.workOrderNumber === activeWO.workOrderNumber
+    );
+    const resolvedOldPhoto =
+      customOldPhotoUrl ||
+      (existingJC?.photos.oldMeterUrl?.startsWith('data:')
+        ? existingJC.photos.oldMeterUrl
+        : DEFAULT_PHOTOS.oldMeterUrl);
+    const resolvedNewPhoto =
+      customNewPhotoUrl ||
+      (existingJC?.photos.newMeterUrl?.startsWith('data:')
+        ? existingJC.photos.newMeterUrl
+        : DEFAULT_PHOTOS.newMeterUrl);
+
     const generated = onSubmitInstallation({
       technicianId: activeTech.id,
       workOrderNumber: activeWO.workOrderNumber,
@@ -415,11 +510,12 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
         fieldNotesInput.trim() ||
         `New ${targetDevice.model} (#${targetDevice.serialNumber}) installed. Old ${activeWO.oldDeviceMake} (#${confirmedOldSerial}) removed at ${parsedOldReading} kWh.`,
       photos: {
-        oldMeterUrl: customOldPhotoUrl || DEFAULT_PHOTOS.oldMeterUrl,
-        newMeterUrl: customNewPhotoUrl || DEFAULT_PHOTOS.newMeterUrl,
+        oldMeterUrl: resolvedOldPhoto,
+        newMeterUrl: resolvedNewPhoto,
         installationSiteUrl:
           customNewPhotoUrl ||
           customOldPhotoUrl ||
+          existingJC?.photos.installationSiteUrl ||
           DEFAULT_PHOTOS.installationSiteUrl,
       },
     });
@@ -1636,7 +1732,7 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-2 shrink-0">
+                <div className="pt-2 shrink-0 space-y-1.5">
                   <button
                     type="button"
                     onClick={handleCaptureSubmit}
@@ -1644,6 +1740,31 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                   >
                     Submit Installation & Save to Database
                   </button>
+                  {(customOldPhotoUrl || customNewPhotoUrl) && !isTechnicianOnly && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const existingJC =
+                          lastSubmittedCard ||
+                          jobCards.find(
+                            (jc) =>
+                              jc.workOrderNumber === activeWO?.workOrderNumber
+                          );
+                        if (existingJC) {
+                          if (onExitAndroidPilotMode) {
+                            onExitAndroidPilotMode();
+                          }
+                          onInspectJobCard(existingJC.jobCardId);
+                        } else {
+                          handleCaptureSubmit();
+                        }
+                      }}
+                      className="w-full py-2 px-3 rounded-xl text-[11px] font-semibold bg-[#143321] hover:bg-[#1B432C] border border-[#2E6230] text-[#4ADE80] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>Open Job Card PDF (Pages 2 & 3 Live Photos)</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1793,25 +1914,23 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                       <span>Return to My Jobs Queue</span>
                     </button>
 
-                    {!isTechnicianOnly && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (lastSubmittedCard) {
-                            if (onExitAndroidPilotMode) {
-                              onExitAndroidPilotMode();
-                            }
-                            onInspectJobCard(lastSubmittedCard.jobCardId);
-                          } else {
-                            handleCaptureSubmit();
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (lastSubmittedCard) {
+                          if (onExitAndroidPilotMode) {
+                            onExitAndroidPilotMode();
                           }
-                        }}
-                        className="w-full py-2.5 rounded-xl bg-[#143321] hover:bg-[#1B432C] border border-[#2E6230] text-xs font-semibold text-[#4ADE80] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <span>Inspect Generated Job Card (Admin)</span>
-                        <ArrowUpRight className="w-4 h-4" />
-                      </button>
-                    )}
+                          onInspectJobCard(lastSubmittedCard.jobCardId);
+                        } else {
+                          handleCaptureSubmit();
+                        }
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-[#143321] hover:bg-[#1B432C] border border-[#2E6230] text-xs font-semibold text-[#4ADE80] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>Inspect Generated Job Card (Pages 1–3)</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
                   </div>
 
                   <div className="text-center pt-3">

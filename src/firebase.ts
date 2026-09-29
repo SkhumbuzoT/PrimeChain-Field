@@ -260,6 +260,8 @@ export async function syncJobCardToCloud(jc: JobCardRecord, ownerUid: string) {
       installationDate: cleanStr(jc.installationDate, 80) || '26 September 2026',
       gpsCoordinates: cleanStr(jc.gpsCoordinates, 120) || '-26.2485, 27.8540',
       fieldNotes: cleanStr(jc.fieldNotes, 500),
+      oldMeterPhotoUrl: cleanStr(jc.photos?.oldMeterUrl, 390000),
+      newMeterPhotoUrl: cleanStr(jc.photos?.newMeterUrl, 390000),
       reviewStatus: jc.reviewStatus,
       generatedAt: cleanStr(jc.generatedAt, 80) || '26 September 2026',
       submittedAt: cleanStr(jc.submittedAt, 80),
@@ -283,6 +285,24 @@ export async function updateJobCardInCloud(
     await updateDoc(doc(db, 'pilot_job_cards', safeId), {
       reviewStatus,
       submittedAt: cleanStr(submittedAt, 80),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function updateJobCardPhotosInCloud(
+  jobCardId: string,
+  oldMeterUrl: string,
+  newMeterUrl: string
+) {
+  const safeId = cleanId(jobCardId);
+  const path = `pilot_job_cards/${safeId}`;
+  try {
+    await updateDoc(doc(db, 'pilot_job_cards', safeId), {
+      oldMeterPhotoUrl: cleanStr(oldMeterUrl, 390000),
+      newMeterPhotoUrl: cleanStr(newMeterUrl, 390000),
       updatedAt: serverTimestamp(),
     });
   } catch (error) {

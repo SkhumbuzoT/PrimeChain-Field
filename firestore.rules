@@ -222,6 +222,8 @@ service cloud.firestore {
         'installationDate',
         'gpsCoordinates',
         'fieldNotes',
+        'oldMeterPhotoUrl',
+        'newMeterPhotoUrl',
         'reviewStatus',
         'generatedAt',
         'submittedAt',
@@ -252,6 +254,8 @@ service cloud.firestore {
       data.installationDate is string && data.installationDate.size() >= 1 && data.installationDate.size() <= 80 &&
       data.gpsCoordinates is string && data.gpsCoordinates.size() >= 1 && data.gpsCoordinates.size() <= 120 &&
       data.fieldNotes is string && data.fieldNotes.size() <= 500 &&
+      (!('oldMeterPhotoUrl' in data) || (data.oldMeterPhotoUrl is string && data.oldMeterPhotoUrl.size() <= 400000)) &&
+      (!('newMeterPhotoUrl' in data) || (data.newMeterPhotoUrl is string && data.newMeterPhotoUrl.size() <= 400000)) &&
       data.reviewStatus is string && data.reviewStatus in ['Ready for Review', 'Submitted to Municipality', 'Flagged Exception'] &&
       data.generatedAt is string && data.generatedAt.size() >= 1 && data.generatedAt.size() <= 80 &&
       data.submittedAt is string && data.submittedAt.size() <= 80 &&
@@ -277,26 +281,10 @@ service cloud.firestore {
         isValidPilotDevice(incoming()) &&
         incoming().serialNumber == existing().serialNumber &&
         incoming().ownerUid == existing().ownerUid &&
-        incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
-        (existing().status != 'Installed' || isAdmin()) &&
-        (
-          isAdmin() ||
-          (
-            existing().ownerUid == request.auth.uid &&
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'status',
-              'assignedTechnicianId',
-              'assignedTechnicianName',
-              'dateIssued',
-              'installedWorkOrderNumber',
-              'installedDate',
-              'updatedAt'
-            ])
-          )
-        );
+        (isAdmin() || existing().ownerUid == request.auth.uid);
 
-      allow delete: if isVerifiedUser() && isValidId(serialNumber) && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(serialNumber) && (isAdmin() || existing().ownerUid == request.auth.uid);
     }
 
     match /pilot_work_orders/{workOrderNumber} {
@@ -315,27 +303,10 @@ service cloud.firestore {
         isValidPilotWorkOrder(incoming()) &&
         incoming().workOrderNumber == existing().workOrderNumber &&
         incoming().ownerUid == existing().ownerUid &&
-        incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
-        (existing().status != 'Submitted' || isAdmin()) &&
-        (
-          isAdmin() ||
-          (
-            existing().ownerUid == request.auth.uid &&
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'status',
-              'assignedTechnicianId',
-              'assignedTechnicianName',
-              'completedDate',
-              'installedDeviceSerial',
-              'jobCardId',
-              'exceptionReason',
-              'updatedAt'
-            ])
-          )
-        );
+        (isAdmin() || existing().ownerUid == request.auth.uid);
 
-      allow delete: if isVerifiedUser() && isValidId(workOrderNumber) && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(workOrderNumber) && (isAdmin() || existing().ownerUid == request.auth.uid);
     }
 
     match /pilot_job_cards/{jobCardId} {
@@ -347,27 +318,18 @@ service cloud.firestore {
         isValidPilotJobCard(incoming()) &&
         incoming().jobCardId == jobCardId &&
         incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time &&
-        exists(/databases/$(database)/documents/pilot_work_orders/$(incoming().workOrderNumber));
+        incoming().updatedAt == request.time;
 
       allow update: if isVerifiedUser() &&
         isValidId(jobCardId) &&
         isValidPilotJobCard(incoming()) &&
         incoming().jobCardId == existing().jobCardId &&
         incoming().ownerUid == existing().ownerUid &&
-        incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
-        (existing().reviewStatus != 'Submitted to Municipality' || isAdmin()) &&
+        (existing().reviewStatus != 'Submitted to Municipality' || isAdmin() || existing().ownerUid == request.auth.uid) &&
         (
           isAdmin() ||
-          (
-            existing().ownerUid == request.auth.uid &&
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'reviewStatus',
-              'submittedAt',
-              'updatedAt'
-            ])
-          )
+          existing().ownerUid == request.auth.uid
         );
 
       allow delete: if isVerifiedUser() && isValidId(jobCardId) && isAdmin();
