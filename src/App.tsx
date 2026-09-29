@@ -24,6 +24,7 @@ import {
   Users,
   Menu,
   X,
+  Compass,
 } from 'lucide-react';
 import {
   ActiveModule,
@@ -1685,11 +1686,11 @@ export default function App() {
     return readyCards.length;
   };
 
-  // Desktop navigation items strictly structured per Objective 2:
-  // Overview -> Control Tower / Dashboard
-  // Operations -> Work Orders, Devices, Technicians, Allocations
-  // Intelligence -> Reports, Analytics
-  // Administration -> Settings, Users
+  // Desktop navigation items strictly structured per user specification:
+  // Overview -> Control Tower
+  // Operations -> Work Orders, Devices, Technicians
+  // Intelligence -> Reports
+  // Administration -> Settings
   const adminNavItems: {
     id: ActiveModule;
     label: string;
@@ -1726,13 +1727,6 @@ export default function App() {
       group: 'Operations',
       count: technicians.length,
       icon: Users,
-    },
-    {
-      id: 'field-capture',
-      label: 'Allocations & Field',
-      group: 'Operations',
-      count: devices.filter((d) => d.status === 'Allocated').length,
-      icon: Truck,
     },
     {
       id: 'job-cards',
@@ -1937,22 +1931,6 @@ export default function App() {
                   </button>
                 );
               })}
-            <button
-              type="button"
-              onClick={() => {
-                handleNavigate('control-tower');
-                if (isMobile) setMobileNavOpen(false);
-              }}
-              className="w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-white/[0.05] hover:text-slate-100 transition-all cursor-pointer"
-            >
-              <span className="flex items-center gap-3 truncate">
-                <BarChart3 className="w-4 h-4 shrink-0 text-slate-400" />
-                <span className="truncate">Analytics</span>
-              </span>
-              <span className="font-mono text-[11px] text-emerald-400">
-                100%
-              </span>
-            </button>
           </div>
 
           {/* Group 4: Administration */}
@@ -1973,26 +1951,12 @@ export default function App() {
                 <span className="truncate">Settings</span>
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowPilotModal(true);
-                if (isMobile) setMobileNavOpen(false);
-              }}
-              className="w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-white/[0.05] hover:text-slate-100 transition-all cursor-pointer"
-            >
-              <span className="flex items-center gap-3 truncate">
-                <UserCheck className="w-4 h-4 shrink-0 text-slate-400" />
-                <span className="truncate">Users &amp; Roles</span>
-              </span>
-              <span className="font-mono text-[11px] text-slate-500">RBAC</span>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Bottom Operator Session & System Controls */}
-      <div className="p-4 border-t border-slate-800/80 space-y-3 bg-[#070B14]">
+      {/* Bottom Operator Session */}
+      <div className="p-4 border-t border-slate-800/80 bg-[#070B14]">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="text-xs font-semibold text-white truncate">
@@ -2009,29 +1973,6 @@ export default function App() {
             className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              handleSelectRoleAndUser('technician', loggedInTechId);
-              if (isMobile) setMobileNavOpen(false);
-            }}
-            className="px-2.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium text-slate-200 text-center transition-colors cursor-pointer truncate"
-          >
-            Tech View
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowPilotModal(true);
-              if (isMobile) setMobileNavOpen(false);
-            }}
-            className="px-2.5 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-xs font-medium text-blue-300 text-center transition-colors cursor-pointer truncate"
-          >
-            Role &amp; Sync
           </button>
         </div>
       </div>
@@ -2130,17 +2071,46 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDemoGuide((prev) => !prev)}
+                className={`px-2.5 py-1.5 rounded border text-xs font-medium cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                  showDemoGuide
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Guide</span>
+              </button>
               <PWAInstallButton />
               <button
                 type="button"
                 onClick={() => setShowPilotModal(true)}
                 className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 cursor-pointer whitespace-nowrap"
               >
-                Role / Sync
+                Settings
               </button>
             </div>
           </div>
         </header>
+
+        {showDemoGuide && (
+          <DemoWalkthroughBar
+            activeStageIndex={activeStageIndex}
+            onSelectStage={(idx, mod) => {
+              setActiveStageIndex(idx);
+              if (mod === 'field-capture') {
+                handleSelectRoleAndUser('technician', loggedInTechId);
+              } else {
+                handleSelectRoleAndUser('admin');
+                setActiveModule(mod);
+              }
+            }}
+            onClose={() => setShowDemoGuide(false)}
+            onResetDemoData={handleResetDemoData}
+          />
+        )}
 
         {/* Locked-Down Technician Mobile Field Screen */}
         <main className="flex-1 w-full max-w-lg mx-auto px-2 sm:px-4 py-3">
@@ -2267,26 +2237,31 @@ export default function App() {
             ))}
           </nav>
 
-          {/* Zone 3: Primary Role & Access Actions */}
+          {/* Zone 3: Walkthrough Guide & Settings Action */}
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() =>
-                handleSelectRoleAndUser('technician', loggedInTechId)
-              }
-              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              onClick={() => setShowDemoGuide((prev) => !prev)}
+              className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs border ${
+                showDemoGuide
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold'
+                  : 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200'
+              }`}
             >
-              <Smartphone className="w-3.5 h-3.5 text-slate-500" />
-              <span>Technician App ({activeTechObj.name.split(' ')[0]})</span>
+              <Compass
+                className={`w-3.5 h-3.5 ${
+                  showDemoGuide ? 'text-blue-600' : 'text-slate-500'
+                }`}
+              />
+              <span>Walkthrough Guide</span>
             </button>
-
             <button
               type="button"
               onClick={() => setShowPilotModal(true)}
-              className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
             >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Users &amp; Role</span>
+              <Settings className="w-3.5 h-3.5 text-slate-500" />
+              <span>Settings</span>
             </button>
           </div>
         </header>
@@ -2299,6 +2274,7 @@ export default function App() {
               if (mod === 'field-capture') {
                 handleSelectRoleAndUser('technician', loggedInTechId);
               } else {
+                handleSelectRoleAndUser('admin');
                 setActiveModule(mod);
               }
             }}

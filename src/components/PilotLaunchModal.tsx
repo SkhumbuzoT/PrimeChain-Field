@@ -92,10 +92,10 @@ export const PilotLaunchModal: React.FC<PilotLaunchModalProps> = ({
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-mono text-blue-400">
               <Lock className="w-3.5 h-3.5" />
-              <span>PRIMECHAIN ROLE-BASED ACCESS CONTROL (RBAC) & PILOT LAUNCHER</span>
+              <span>ADMINISTRATION &amp; PLATFORM SETTINGS</span>
             </div>
             <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
-              Operate PrimeChain by User Rights (Admin Desktop vs. Technician Field App)
+              Settings — User Roles, Technician Mobile App &amp; Cloud Sync
             </h2>
           </div>
           <button
