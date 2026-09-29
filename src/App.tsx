@@ -157,7 +157,37 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Merge helpers by unique primary key so newly created desktop items are never lost
+  // Preserve real camera photos (data:image/...) whenever merging JobCardRecords from Firestore or Server
+  const preserveRealJobCardPhotos = (
+    incomingList: JobCardRecord[],
+    existingList: JobCardRecord[]
+  ): JobCardRecord[] => {
+    const existingMap = new Map<string, JobCardRecord>();
+    existingList.forEach((jc) => existingMap.set(jc.jobCardId, jc));
+    return incomingList.map((jc) => {
+      const prev = existingMap.get(jc.jobCardId);
+      if (!prev) return jc;
+      const hasCustomOld = prev.photos?.oldMeterUrl?.startsWith('data:image');
+      const hasCustomNew = prev.photos?.newMeterUrl?.startsWith('data:image');
+      const hasCustomSite =
+        prev.photos?.installationSiteUrl?.startsWith('data:image');
+      return {
+        ...jc,
+        photos: {
+          oldMeterUrl: hasCustomOld
+            ? prev.photos.oldMeterUrl
+            : jc.photos?.oldMeterUrl || DEFAULT_PHOTOS.oldMeterUrl,
+          newMeterUrl: hasCustomNew
+            ? prev.photos.newMeterUrl
+            : jc.photos?.newMeterUrl || DEFAULT_PHOTOS.newMeterUrl,
+          installationSiteUrl: hasCustomSite
+            ? prev.photos.installationSiteUrl
+            : jc.photos?.installationSiteUrl ||
+              DEFAULT_PHOTOS.installationSiteUrl,
+        },
+      };
+    });
+  };
   const mergeByKey = <T,>(
     remoteList: T[],
     localList: T[],
@@ -520,11 +550,12 @@ export default function App() {
             prev,
             (item) => item.jobCardId
           );
+          const withPreservedPhotos = preserveRealJobCardPhotos(merged, prev);
           if (localOnly.length > 0) {
             localOnly.forEach((jc) => syncJobCardToCloud(jc, uid));
           }
-          pushStateToServer({ jobCards: merged });
-          return merged;
+          pushStateToServer({ jobCards: withPreservedPhotos });
+          return withPreservedPhotos;
         });
       },
       (error) => {
@@ -894,9 +925,20 @@ export default function App() {
       devices.find((d) => d.serialNumber === payload.newDeviceSerial) ||
       devices[0];
 
-    const nextJcNum = 900 + jobCards.length + 1;
+    const maxJcNum = jobCards.reduce((max, jc) => {
+      const match = jc.jobCardId.match(/JC-2026-0(\d+)/);
+      const n = match ? parseInt(match[1], 10) : 0;
+      return !isNaN(n) && n > max ? n : max;
+    }, 903);
+    const nextJcNum = maxJcNum + 1;
     const newJobCardId = `JC-2026-0${nextJcNum}`;
-    const nowStamp = '26 September 2026 · 09:11';
+    const now = new Date();
+    const datePart = now.toLocaleDateString('en-GB');
+    const timePart = now.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const nowStamp = `${datePart} · ${timePart}`;
 
     const newJobCard: JobCardRecord = {
       jobCardId: newJobCardId,
