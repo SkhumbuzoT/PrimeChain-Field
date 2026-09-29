@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import {
@@ -65,6 +65,7 @@ const STORAGE_KEYS = {
   WORK_ORDERS: 'primechain_workorders_v3',
   TECHNICIANS: 'primechain_technicians_v3',
   JOB_CARDS: 'primechain_jobcards_v3',
+  CAPTURED_PHOTOS: 'primechain_captured_photos_v3',
 };
 
 export default function App() {
@@ -149,6 +150,34 @@ export default function App() {
     }
   });
 
+  const [capturedPhotos, setCapturedPhotos] = useState<{
+    oldMeterUrl?: string;
+    newMeterUrl?: string;
+  }>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CAPTURED_PHOTOS);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const capturedPhotosRef = useRef(capturedPhotos);
+  useEffect(() => {
+    capturedPhotosRef.current = capturedPhotos;
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.CAPTURED_PHOTOS,
+        JSON.stringify(capturedPhotos)
+      );
+    } catch {
+      // ignore quota errors
+    }
+  }, [capturedPhotos]);
+
+  const lastServerVersionRef = useRef<number>(-1);
+  const isPushingRef = useRef<number>(0);
+
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -158,18 +187,61 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Preserve real camera photos (data:image/...) whenever merging JobCardRecords from Firestore or Server
+  // Preserve real camera photos (data:image/...) and union of JobCardRecords whenever merging from Firestore or Server
   const preserveRealJobCardPhotos = (
     incomingList: JobCardRecord[],
-    existingList: JobCardRecord[]
+    existingList: JobCardRecord[],
+    explicitCaptured?: { oldMeterUrl?: string; newMeterUrl?: string }
   ): JobCardRecord[] => {
     const byId = new Map<string, JobCardRecord>();
     const byWo = new Map<string, JobCardRecord>();
+    let fallbackOld =
+      explicitCaptured?.oldMeterUrl ||
+      capturedPhotosRef.current?.oldMeterUrl ||
+      '';
+    let fallbackNew =
+      explicitCaptured?.newMeterUrl ||
+      capturedPhotosRef.current?.newMeterUrl ||
+      '';
+
     existingList.forEach((jc) => {
       byId.set(jc.jobCardId, jc);
       if (jc.workOrderNumber) byWo.set(jc.workOrderNumber, jc);
+      if (!fallbackOld && jc.photos?.oldMeterUrl?.startsWith('data:')) {
+        fallbackOld = jc.photos.oldMeterUrl;
+      }
+      if (!fallbackNew && jc.photos?.newMeterUrl?.startsWith('data:')) {
+        fallbackNew = jc.photos.newMeterUrl;
+      }
     });
-    const combined = incomingList.map((jc) => {
+
+    incomingList.forEach((jc) => {
+      if (!fallbackOld && jc.photos?.oldMeterUrl?.startsWith('data:')) {
+        fallbackOld = jc.photos.oldMeterUrl;
+      }
+      if (!fallbackNew && jc.photos?.newMeterUrl?.startsWith('data:')) {
+        fallbackNew = jc.photos.newMeterUrl;
+      }
+    });
+
+    if (
+      (fallbackOld && fallbackOld !== capturedPhotosRef.current?.oldMeterUrl) ||
+      (fallbackNew && fallbackNew !== capturedPhotosRef.current?.newMeterUrl)
+    ) {
+      const nextCap = {
+        oldMeterUrl: fallbackOld || capturedPhotosRef.current?.oldMeterUrl,
+        newMeterUrl: fallbackNew || capturedPhotosRef.current?.newMeterUrl,
+      };
+      capturedPhotosRef.current = nextCap;
+      setCapturedPhotos(nextCap);
+    }
+
+    const seenIds = new Set<string>();
+    const seenWos = new Set<string>();
+
+    const mergedIncoming = incomingList.map((jc) => {
+      seenIds.add(jc.jobCardId);
+      if (jc.workOrderNumber) seenWos.add(jc.workOrderNumber);
       const prev = byId.get(jc.jobCardId) || byWo.get(jc.workOrderNumber);
       const incOld = jc.photos?.oldMeterUrl || '';
       const incNew = jc.photos?.newMeterUrl || '';
@@ -179,24 +251,30 @@ export default function App() {
       const prevNew = prev?.photos?.newMeterUrl || '';
       const prevSite = prev?.photos?.installationSiteUrl || '';
 
-      const oldMeterUrl = incOld.startsWith('data:image')
+      const oldMeterUrl = incOld.startsWith('data:')
         ? incOld
-        : prevOld.startsWith('data:image')
+        : prevOld.startsWith('data:')
         ? prevOld
+        : fallbackOld.startsWith('data:')
+        ? fallbackOld
         : incOld || prevOld || DEFAULT_PHOTOS.oldMeterUrl;
 
-      const newMeterUrl = incNew.startsWith('data:image')
+      const newMeterUrl = incNew.startsWith('data:')
         ? incNew
-        : prevNew.startsWith('data:image')
+        : prevNew.startsWith('data:')
         ? prevNew
+        : fallbackNew.startsWith('data:')
+        ? fallbackNew
         : incNew || prevNew || DEFAULT_PHOTOS.newMeterUrl;
 
-      const installationSiteUrl = incSite.startsWith('data:image')
+      const installationSiteUrl = incSite.startsWith('data:')
         ? incSite
-        : prevSite.startsWith('data:image')
+        : prevSite.startsWith('data:')
         ? prevSite
-        : newMeterUrl.startsWith('data:image')
+        : newMeterUrl.startsWith('data:')
         ? newMeterUrl
+        : oldMeterUrl.startsWith('data:')
+        ? oldMeterUrl
         : incSite || prevSite || DEFAULT_PHOTOS.installationSiteUrl;
 
       return {
@@ -209,24 +287,60 @@ export default function App() {
       };
     });
 
+    const missingExisting = existingList
+      .filter(
+        (jc) =>
+          !seenIds.has(jc.jobCardId) &&
+          (!jc.workOrderNumber || !seenWos.has(jc.workOrderNumber))
+      )
+      .map((jc) => {
+        const prevOld = jc.photos?.oldMeterUrl || '';
+        const prevNew = jc.photos?.newMeterUrl || '';
+        const oldMeterUrl = prevOld.startsWith('data:')
+          ? prevOld
+          : fallbackOld.startsWith('data:')
+          ? fallbackOld
+          : prevOld || DEFAULT_PHOTOS.oldMeterUrl;
+        const newMeterUrl = prevNew.startsWith('data:')
+          ? prevNew
+          : fallbackNew.startsWith('data:')
+          ? fallbackNew
+          : prevNew || DEFAULT_PHOTOS.newMeterUrl;
+        return {
+          ...jc,
+          photos: {
+            oldMeterUrl,
+            newMeterUrl,
+            installationSiteUrl: newMeterUrl.startsWith('data:')
+              ? newMeterUrl
+              : oldMeterUrl.startsWith('data:')
+              ? oldMeterUrl
+              : jc.photos?.installationSiteUrl ||
+                DEFAULT_PHOTOS.installationSiteUrl,
+          },
+        };
+      });
+
+    const combined = [...missingExisting, ...mergedIncoming];
+
     // Sort job cards so cards with real camera photos or newly generated IDs appear first
     return [...combined].sort((a, b) => {
-      const aHasCamera =
-        a.photos?.oldMeterUrl?.startsWith('data:image') ||
-        a.photos?.newMeterUrl?.startsWith('data:image')
-          ? 1
-          : 0;
-      const bHasCamera =
-        b.photos?.oldMeterUrl?.startsWith('data:image') ||
-        b.photos?.newMeterUrl?.startsWith('data:image')
-          ? 1
-          : 0;
-      if (aHasCamera !== bHasCamera) return bHasCamera - aHasCamera;
       const aMatch = a.jobCardId.match(/JC-2026-0(\d+)/);
       const bMatch = b.jobCardId.match(/JC-2026-0(\d+)/);
       const aNum = aMatch ? parseInt(aMatch[1], 10) : 0;
       const bNum = bMatch ? parseInt(bMatch[1], 10) : 0;
       if (aNum > 903 || bNum > 903) return bNum - aNum;
+      const aHasCamera =
+        a.photos?.oldMeterUrl?.startsWith('data:') ||
+        a.photos?.newMeterUrl?.startsWith('data:')
+          ? 1
+          : 0;
+      const bHasCamera =
+        b.photos?.oldMeterUrl?.startsWith('data:') ||
+        b.photos?.newMeterUrl?.startsWith('data:')
+          ? 1
+          : 0;
+      if (aHasCamera !== bHasCamera) return bHasCamera - aHasCamera;
       return 0;
     });
   };
@@ -278,33 +392,58 @@ export default function App() {
     workOrders?: WorkOrder[];
     technicians?: Technician[];
     jobCards?: JobCardRecord[];
+    capturedPhotos?: { oldMeterUrl?: string; newMeterUrl?: string };
     reset?: boolean;
   }) => {
+    isPushingRef.current += 1;
     try {
       const res = await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          capturedPhotos: payload.reset
+            ? {}
+            : payload.capturedPhotos || capturedPhotosRef.current,
+        }),
       });
       if (res.ok) {
         setIsCloudSynced(true);
+        const data = await res.json();
+        if (typeof data?.version === 'number') {
+          lastServerVersionRef.current = Math.max(
+            lastServerVersionRef.current,
+            data.version
+          );
+        }
       }
     } catch {
       // Offline or static host fallback
+    } finally {
+      isPushingRef.current = Math.max(0, isPushingRef.current - 1);
     }
   };
 
   // Real-time Server-Sent Events (/api/events) + Polling (/api/state) for zero-login Desktop <-> Phone sync
   useEffect(() => {
-    let lastVersion = -1;
     let isMounted = true;
 
     const syncFromServer = async (isInitialBoot = false) => {
+      if (!isInitialBoot && isPushingRef.current > 0) return;
       try {
         const res = await fetch('/api/state', { cache: 'no-store' });
         if (!res.ok || !isMounted) return;
+        if (!isInitialBoot && isPushingRef.current > 0) return;
         const data = await res.json();
         setIsCloudSynced(true);
+
+        const serverCaptured =
+          data.capturedPhotos && typeof data.capturedPhotos === 'object'
+            ? (data.capturedPhotos as {
+                oldMeterUrl?: string;
+                newMeterUrl?: string;
+              })
+            : undefined;
 
         if (isInitialBoot) {
           const remoteDevs: MeterDevice[] = Array.isArray(data.devices)
@@ -352,10 +491,11 @@ export default function App() {
           );
           const mergedJCsWithPhotos = preserveRealJobCardPhotos(
             jcMerge.merged,
-            jobCards
+            jobCards,
+            serverCaptured
           );
 
-          lastVersion = data.version;
+          lastServerVersionRef.current = data.version;
           setDevices(devMerge.merged);
           setWorkOrders(woMerge.merged);
           setTechnicians(techMerge.merged);
@@ -377,14 +517,18 @@ export default function App() {
           return;
         }
 
-        if (typeof data.version === 'number' && data.version > lastVersion) {
-          lastVersion = data.version;
+        if (
+          typeof data.version === 'number' &&
+          data.version > lastServerVersionRef.current &&
+          isPushingRef.current === 0
+        ) {
+          lastServerVersionRef.current = data.version;
           if (Array.isArray(data.devices)) setDevices(data.devices);
           if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
           if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
           if (Array.isArray(data.jobCards)) {
             setJobCards((prev) =>
-              preserveRealJobCardPhotos(data.jobCards, prev)
+              preserveRealJobCardPhotos(data.jobCards, prev, serverCaptured)
             );
           }
         }
@@ -399,18 +543,29 @@ export default function App() {
     try {
       es = new EventSource('/api/events');
       es.onmessage = (event) => {
-        if (!isMounted) return;
+        if (!isMounted || isPushingRef.current > 0) return;
         try {
           const data = JSON.parse(event.data);
           setIsCloudSynced(true);
-          if (typeof data.version === 'number' && data.version > lastVersion && lastVersion !== -1) {
-            lastVersion = data.version;
+          const serverCaptured =
+            data.capturedPhotos && typeof data.capturedPhotos === 'object'
+              ? (data.capturedPhotos as {
+                  oldMeterUrl?: string;
+                  newMeterUrl?: string;
+                })
+              : undefined;
+          if (
+            typeof data.version === 'number' &&
+            data.version > lastServerVersionRef.current &&
+            lastServerVersionRef.current !== -1
+          ) {
+            lastServerVersionRef.current = data.version;
             if (Array.isArray(data.devices)) setDevices(data.devices);
             if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
             if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
             if (Array.isArray(data.jobCards)) {
               setJobCards((prev) =>
-                preserveRealJobCardPhotos(data.jobCards, prev)
+                preserveRealJobCardPhotos(data.jobCards, prev, serverCaptured)
               );
             }
           }
@@ -724,6 +879,13 @@ export default function App() {
     setWorkOrders(INITIAL_WORK_ORDERS);
     setTechnicians(INITIAL_TECHNICIANS);
     setJobCards(INITIAL_JOB_CARDS);
+    setCapturedPhotos({});
+    capturedPhotosRef.current = {};
+    try {
+      localStorage.removeItem(STORAGE_KEYS.CAPTURED_PHOTOS);
+    } catch {
+      // ignore
+    }
     setSelectedJobCardId('JC-2026-0901');
     setNavigationHint(undefined);
     await pushStateToServer({
@@ -1120,13 +1282,43 @@ export default function App() {
       };
     });
 
+    const nextCaptured = {
+      oldMeterUrl: payload.photos.oldMeterUrl?.startsWith('data:')
+        ? payload.photos.oldMeterUrl
+        : capturedPhotosRef.current?.oldMeterUrl,
+      newMeterUrl: payload.photos.newMeterUrl?.startsWith('data:')
+        ? payload.photos.newMeterUrl
+        : capturedPhotosRef.current?.newMeterUrl,
+    };
+    capturedPhotosRef.current = nextCaptured;
+    setCapturedPhotos(nextCaptured);
+
     const nextJCs = [
       newJobCard,
-      ...jobCards.filter(
-        (jc) =>
-          jc.jobCardId !== newJobCardId &&
-          jc.workOrderNumber !== wo.workOrderNumber
-      ),
+      ...jobCards
+        .filter(
+          (jc) =>
+            jc.jobCardId !== newJobCardId &&
+            jc.workOrderNumber !== wo.workOrderNumber
+        )
+        .map((jc) => ({
+          ...jc,
+          photos: {
+            oldMeterUrl: jc.photos.oldMeterUrl.startsWith('data:')
+              ? jc.photos.oldMeterUrl
+              : nextCaptured.oldMeterUrl || jc.photos.oldMeterUrl,
+            newMeterUrl: jc.photos.newMeterUrl.startsWith('data:')
+              ? jc.photos.newMeterUrl
+              : nextCaptured.newMeterUrl || jc.photos.newMeterUrl,
+            installationSiteUrl: jc.photos.installationSiteUrl.startsWith(
+              'data:'
+            )
+              ? jc.photos.installationSiteUrl
+              : nextCaptured.newMeterUrl ||
+                nextCaptured.oldMeterUrl ||
+                jc.photos.installationSiteUrl,
+          },
+        })),
     ];
 
     setDevices(nextDevs);
@@ -1138,6 +1330,7 @@ export default function App() {
       devices: nextDevs,
       workOrders: nextWOs,
       jobCards: nextJCs,
+      capturedPhotos: nextCaptured,
     });
 
     if (currentUser) {
@@ -1171,27 +1364,51 @@ export default function App() {
     which: 'old' | 'new',
     dataUrl: string
   ) => {
+    const nextCaptured = {
+      ...capturedPhotosRef.current,
+      oldMeterUrl:
+        which === 'old' ? dataUrl : capturedPhotosRef.current?.oldMeterUrl,
+      newMeterUrl:
+        which === 'new' ? dataUrl : capturedPhotosRef.current?.newMeterUrl,
+    };
+    capturedPhotosRef.current = nextCaptured;
+    setCapturedPhotos(nextCaptured);
+
     let updatedCard: JobCardRecord | undefined;
     const nextJCs: JobCardRecord[] = jobCards.map((jc) => {
-      if (jc.jobCardId !== jobCardId) return jc;
-      const nextPhotos = {
-        ...jc.photos,
-        oldMeterUrl: which === 'old' ? dataUrl : jc.photos.oldMeterUrl,
-        newMeterUrl: which === 'new' ? dataUrl : jc.photos.newMeterUrl,
-        installationSiteUrl:
-          which === 'new' ? dataUrl : jc.photos.installationSiteUrl,
+      if (jc.jobCardId === jobCardId) {
+        const nextPhotos = {
+          ...jc.photos,
+          oldMeterUrl: which === 'old' ? dataUrl : jc.photos.oldMeterUrl,
+          newMeterUrl: which === 'new' ? dataUrl : jc.photos.newMeterUrl,
+          installationSiteUrl:
+            which === 'new' ? dataUrl : jc.photos.installationSiteUrl,
+        };
+        updatedCard = { ...jc, photos: nextPhotos };
+        return updatedCard;
+      }
+      // Also replace any generic placeholder photo on other cards so no card displays stock images once real photos are captured
+      return {
+        ...jc,
+        photos: {
+          oldMeterUrl:
+            which === 'old' && !jc.photos.oldMeterUrl.startsWith('data:')
+              ? dataUrl
+              : jc.photos.oldMeterUrl,
+          newMeterUrl:
+            which === 'new' && !jc.photos.newMeterUrl.startsWith('data:')
+              ? dataUrl
+              : jc.photos.newMeterUrl,
+          installationSiteUrl: !jc.photos.installationSiteUrl.startsWith('data:')
+            ? dataUrl
+            : jc.photos.installationSiteUrl,
+        },
       };
-      updatedCard = { ...jc, photos: nextPhotos };
-      return updatedCard;
     });
     setJobCards(nextJCs);
-    pushStateToServer({ jobCards: nextJCs });
+    pushStateToServer({ jobCards: nextJCs, capturedPhotos: nextCaptured });
     if (currentUser && updatedCard) {
-      updateJobCardPhotosInCloud(
-        jobCardId,
-        updatedCard.photos.oldMeterUrl,
-        updatedCard.photos.newMeterUrl
-      );
+      syncJobCardToCloud(updatedCard, currentUser.uid);
     }
   };
 
@@ -1209,13 +1426,25 @@ export default function App() {
       fieldNotes?: string;
       gpsCoordinates?: string;
     }
-  ) => {
+  ): JobCardRecord | undefined => {
+    const nextCaptured = {
+      ...capturedPhotosRef.current,
+      oldMeterUrl:
+        which === 'old' ? dataUrl : capturedPhotosRef.current?.oldMeterUrl,
+      newMeterUrl:
+        which === 'new' ? dataUrl : capturedPhotosRef.current?.newMeterUrl,
+    };
+    capturedPhotosRef.current = nextCaptured;
+    setCapturedPhotos(nextCaptured);
+
     const wo =
       workOrders.find((w) => w.workOrderNumber === workOrderNumber) ||
       workOrders[0];
     const tech =
       technicians.find(
-        (t) => t.id === (context?.technicianId || wo.assignedTechnicianId || loggedInTechId)
+        (t) =>
+          t.id ===
+          (context?.technicianId || wo.assignedTechnicianId || loggedInTechId)
       ) || technicians[0];
     const dev =
       devices.find((d) => d.serialNumber === context?.newDeviceSerial) ||
@@ -1231,7 +1460,8 @@ export default function App() {
     if (existingCard) {
       const updatedCard: JobCardRecord = {
         ...existingCard,
-        oldDeviceSerial: context?.oldDeviceSerial || existingCard.oldDeviceSerial,
+        oldDeviceSerial:
+          context?.oldDeviceSerial || existingCard.oldDeviceSerial,
         oldMeterReading:
           context?.oldMeterReading !== undefined
             ? context.oldMeterReading
@@ -1244,28 +1474,51 @@ export default function App() {
         photos: {
           ...existingCard.photos,
           oldMeterUrl:
-            which === 'old' ? dataUrl : existingCard.photos.oldMeterUrl,
+            which === 'old'
+              ? dataUrl
+              : existingCard.photos.oldMeterUrl.startsWith('data:')
+              ? existingCard.photos.oldMeterUrl
+              : nextCaptured.oldMeterUrl || existingCard.photos.oldMeterUrl,
           newMeterUrl:
-            which === 'new' ? dataUrl : existingCard.photos.newMeterUrl,
+            which === 'new'
+              ? dataUrl
+              : existingCard.photos.newMeterUrl.startsWith('data:')
+              ? existingCard.photos.newMeterUrl
+              : nextCaptured.newMeterUrl || existingCard.photos.newMeterUrl,
           installationSiteUrl:
             which === 'new'
               ? dataUrl
-              : existingCard.photos.installationSiteUrl.startsWith('data:image')
+              : existingCard.photos.installationSiteUrl.startsWith('data:')
               ? existingCard.photos.installationSiteUrl
               : dataUrl,
         },
       };
-      const nextJCs = [
-        updatedCard,
-        ...jobCards.filter((jc) => jc.jobCardId !== existingCard.jobCardId),
-      ];
+      const otherCards = jobCards
+        .filter((jc) => jc.jobCardId !== existingCard.jobCardId)
+        .map((jc) => ({
+          ...jc,
+          photos: {
+            oldMeterUrl: jc.photos.oldMeterUrl.startsWith('data:')
+              ? jc.photos.oldMeterUrl
+              : nextCaptured.oldMeterUrl || jc.photos.oldMeterUrl,
+            newMeterUrl: jc.photos.newMeterUrl.startsWith('data:')
+              ? jc.photos.newMeterUrl
+              : nextCaptured.newMeterUrl || jc.photos.newMeterUrl,
+            installationSiteUrl: jc.photos.installationSiteUrl.startsWith(
+              'data:'
+            )
+              ? jc.photos.installationSiteUrl
+              : dataUrl,
+          },
+        }));
+      const nextJCs = [updatedCard, ...otherCards];
       setJobCards(nextJCs);
       setSelectedJobCardId(existingCard.jobCardId);
-      pushStateToServer({ jobCards: nextJCs });
+      pushStateToServer({ jobCards: nextJCs, capturedPhotos: nextCaptured });
       if (currentUser) {
         syncJobCardToCloud(updatedCard, currentUser.uid);
       }
-      return;
+      return updatedCard;
     }
 
     // Create a live Job Card record for this Work Order immediately so Pages 2 & 3 have the captured photo right away
@@ -1296,7 +1549,7 @@ export default function App() {
         context?.oldMeterReading !== undefined
           ? context.oldMeterReading
           : wo.existingReading,
-      newDeviceSerial: dev.serialNumber,
+      newDeviceSerial: context?.newDeviceSerial || dev.serialNumber,
       newDeviceModel: dev.model,
       newDeviceManufacturer: dev.manufacturer,
       newMeterReading: context?.newMeterReading || 0,
@@ -1308,21 +1561,43 @@ export default function App() {
         context?.fieldNotes ||
         `New ${dev.model} (#${dev.serialNumber}) installed. Old ${wo.oldDeviceMake} removed.`,
       photos: {
-        oldMeterUrl: which === 'old' ? dataUrl : DEFAULT_PHOTOS.oldMeterUrl,
-        newMeterUrl: which === 'new' ? dataUrl : DEFAULT_PHOTOS.newMeterUrl,
+        oldMeterUrl:
+          which === 'old'
+            ? dataUrl
+            : nextCaptured.oldMeterUrl || DEFAULT_PHOTOS.oldMeterUrl,
+        newMeterUrl:
+          which === 'new'
+            ? dataUrl
+            : nextCaptured.newMeterUrl || DEFAULT_PHOTOS.newMeterUrl,
         installationSiteUrl: dataUrl,
       },
       reviewStatus: 'Ready for Review',
       generatedAt: `${nowStamp}:00`,
     };
 
-    const nextJCs = [newCard, ...jobCards];
+    const updatedExistingCards = jobCards.map((jc) => ({
+      ...jc,
+      photos: {
+        oldMeterUrl: jc.photos.oldMeterUrl.startsWith('data:')
+          ? jc.photos.oldMeterUrl
+          : nextCaptured.oldMeterUrl || jc.photos.oldMeterUrl,
+        newMeterUrl: jc.photos.newMeterUrl.startsWith('data:')
+          ? jc.photos.newMeterUrl
+          : nextCaptured.newMeterUrl || jc.photos.newMeterUrl,
+        installationSiteUrl: jc.photos.installationSiteUrl.startsWith('data:')
+          ? jc.photos.installationSiteUrl
+          : dataUrl,
+      },
+    }));
+
+    const nextJCs = [newCard, ...updatedExistingCards];
     setJobCards(nextJCs);
     setSelectedJobCardId(newJobCardId);
-    pushStateToServer({ jobCards: nextJCs });
+    pushStateToServer({ jobCards: nextJCs, capturedPhotos: nextCaptured });
     if (currentUser) {
       syncJobCardToCloud(newCard, currentUser.uid);
     }
+    return newCard;
   };
 
   const handleSubmitJobCardToMunicipality = (jobCardId: string) => {
@@ -1567,6 +1842,8 @@ export default function App() {
             technicians={technicians}
             workOrders={workOrders}
             devices={devices}
+            jobCards={jobCards}
+            capturedPhotos={capturedPhotos}
             initialHint={navigationHint}
             userRole="technician"
             loggedInTechId={loggedInTechId}
@@ -1970,6 +2247,8 @@ export default function App() {
                 technicians={technicians}
                 workOrders={workOrders}
                 devices={devices}
+                jobCards={jobCards}
+                capturedPhotos={capturedPhotos}
                 initialHint={navigationHint}
                 userRole="admin"
                 loggedInTechId={loggedInTechId}
@@ -1989,6 +2268,7 @@ export default function App() {
             {activeModule === 'job-cards' && (
               <JobCardsView
                 jobCards={jobCards}
+                capturedPhotos={capturedPhotos}
                 selectedJobCardId={selectedJobCardId}
                 onSelectJobCard={(id) => setSelectedJobCardId(id)}
                 onSubmitToMunicipality={handleSubmitJobCardToMunicipality}

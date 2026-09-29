@@ -14,6 +14,10 @@ import { JobCardRecord } from '../types';
 
 interface JobCardsViewProps {
   jobCards: JobCardRecord[];
+  capturedPhotos?: {
+    oldMeterUrl?: string;
+    newMeterUrl?: string;
+  };
   selectedJobCardId?: string;
   onSelectJobCard: (jobCardId: string) => void;
   onSubmitToMunicipality: (jobCardId: string) => void;
@@ -47,6 +51,7 @@ function formatToCityPowerDate(rawDate: string): string {
 
 export const JobCardsView: React.FC<JobCardsViewProps> = ({
   jobCards,
+  capturedPhotos,
   selectedJobCardId,
   onSelectJobCard,
   onSubmitToMunicipality,
@@ -136,10 +141,37 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
       j.photos?.oldMeterUrl?.startsWith('data:') ||
       j.photos?.newMeterUrl?.startsWith('data:')
   );
+  const cardWithRealOld = jobCards.find((j) =>
+    j.photos?.oldMeterUrl?.startsWith('data:')
+  );
+  const cardWithRealNew = jobCards.find((j) =>
+    j.photos?.newMeterUrl?.startsWith('data:')
+  );
   const activeCard =
     jobCards.find((j) => j.jobCardId === selectedJobCardId) ||
     cardWithRealPhotos ||
     jobCards[0];
+
+  // Resolve real captured photos for Page 2 (Old Meter) and Page 3 (New Meter) so generic stock images are never shown once the user has captured photos
+  const resolvedOldPhotoUrl = activeCard
+    ? activeCard.photos?.oldMeterUrl?.startsWith('data:')
+      ? activeCard.photos.oldMeterUrl
+      : capturedPhotos?.oldMeterUrl?.startsWith('data:')
+      ? capturedPhotos.oldMeterUrl
+      : cardWithRealOld?.photos.oldMeterUrl?.startsWith('data:')
+      ? cardWithRealOld.photos.oldMeterUrl
+      : activeCard.photos.oldMeterUrl
+    : '';
+
+  const resolvedNewPhotoUrl = activeCard
+    ? activeCard.photos?.newMeterUrl?.startsWith('data:')
+      ? activeCard.photos.newMeterUrl
+      : capturedPhotos?.newMeterUrl?.startsWith('data:')
+      ? capturedPhotos.newMeterUrl
+      : cardWithRealNew?.photos.newMeterUrl?.startsWith('data:')
+      ? cardWithRealNew.photos.newMeterUrl
+      : activeCard.photos.newMeterUrl
+    : '';
 
   useEffect(() => {
     if (selectedJobCardId) {
@@ -219,6 +251,22 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Hidden file inputs so user can capture/replace Photo 1 or Photo 2 from anywhere on the Job Cards screen */}
+      <input
+        ref={page2CameraInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => handleDirectPagePhotoChange(e, 'old')}
+        className="hidden"
+      />
+      <input
+        ref={page3CameraInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => handleDirectPagePhotoChange(e, 'new')}
+        className="hidden"
+      />
+
       {/* Enterprise Action Header (hidden when printing) */}
       <section className="border border-slate-200 bg-white rounded-md p-4 no-print">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -491,21 +539,52 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                 </button>
               </div>
 
-              {activeCard.reviewStatus !== 'Submitted to Municipality' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSubmitToMunicipality(activeCard.jobCardId);
-                    setNotice(
-                      `FINAL_JOB_CARD_${mappedAccount}.pdf approved and submitted to City Power.`
-                    );
-                  }}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded flex items-center gap-1.5 cursor-pointer"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Approve & Submit to City Power</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {onUpdateJobCardPhoto && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => page2CameraInputRef.current?.click()}
+                      className="px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-blue-600" />
+                      <span>
+                        {resolvedOldPhotoUrl.startsWith('data:')
+                          ? '✓ Photo 1 (Retake)'
+                          : 'Attach Photo 1 (Page 2)'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => page3CameraInputRef.current?.click()}
+                      className="px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-blue-600" />
+                      <span>
+                        {resolvedNewPhotoUrl.startsWith('data:')
+                          ? '✓ Photo 2 (Retake)'
+                          : 'Attach Photo 2 (Page 3)'}
+                      </span>
+                    </button>
+                  </>
+                )}
+
+                {activeCard.reviewStatus !== 'Submitted to Municipality' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSubmitToMunicipality(activeCard.jobCardId);
+                      setNotice(
+                        `FINAL_JOB_CARD_${mappedAccount}.pdf approved and submitted to City Power.`
+                      );
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Approve & Submit to City Power</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1010,24 +1089,6 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                  ============================================================= */}
               {(pageView === 'all' || pageView === 'photos') && (
                 <>
-                  {/* Hidden file inputs so user can also capture/replace Photo 1 or Photo 2 directly on Page 2 & Page 3 */}
-                  <input
-                    ref={page2CameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handleDirectPagePhotoChange(e, 'old')}
-                    className="hidden"
-                  />
-                  <input
-                    ref={page3CameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handleDirectPagePhotoChange(e, 'new')}
-                    className="hidden"
-                  />
-
                   {/* PAGE 2: OLD METER IMAGE (Centered on A4 white sheet) */}
                   <section className="print-page-break bg-white border border-slate-300 shadow-sm p-6 sm:p-10 text-black max-w-[820px] mx-auto flex flex-col justify-between min-h-[680px]">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 text-xs font-mono text-slate-600">
@@ -1035,7 +1096,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                         <span>
                           MERGED PHOTO ATTACHMENT — PAGE 2 OF 3 (OldMeterImage)
                         </span>
-                        {activeCard.photos.oldMeterUrl?.startsWith('data:') ? (
+                        {resolvedOldPhotoUrl.startsWith('data:') ? (
                           <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] no-print">
                             ✓ LIVE CAPTURED PHOTO
                           </span>
@@ -1054,7 +1115,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                           >
                             <Camera className="w-3.5 h-3.5" />
                             <span>
-                              {activeCard.photos.oldMeterUrl?.startsWith('data:')
+                              {resolvedOldPhotoUrl.startsWith('data:')
                                 ? 'Retake / Replace Photo 1'
                                 : 'Capture / Upload Photo 1'}
                             </span>
@@ -1066,7 +1127,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
 
                     <div className="my-auto py-6 flex flex-col items-center justify-center">
                       <img
-                        src={activeCard.photos.oldMeterUrl}
+                        src={resolvedOldPhotoUrl}
                         alt={`Old Meter ${mappedOldMeter}`}
                         referrerPolicy="no-referrer"
                         className="max-h-[480px] w-auto object-contain border border-slate-300 p-2 bg-white"
@@ -1092,7 +1153,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                         <span>
                           MERGED PHOTO ATTACHMENT — PAGE 3 OF 3 (NewMeterImage)
                         </span>
-                        {activeCard.photos.newMeterUrl?.startsWith('data:') ? (
+                        {resolvedNewPhotoUrl.startsWith('data:') ? (
                           <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] no-print">
                             ✓ LIVE CAPTURED PHOTO
                           </span>
@@ -1111,7 +1172,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                           >
                             <Camera className="w-3.5 h-3.5" />
                             <span>
-                              {activeCard.photos.newMeterUrl?.startsWith('data:')
+                              {resolvedNewPhotoUrl.startsWith('data:')
                                 ? 'Retake / Replace Photo 2'
                                 : 'Capture / Upload Photo 2'}
                             </span>
@@ -1123,7 +1184,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
 
                     <div className="my-auto py-6 flex flex-col items-center justify-center">
                       <img
-                        src={activeCard.photos.newMeterUrl}
+                        src={resolvedNewPhotoUrl}
                         alt={`New Meter ${mappedNewMeter}`}
                         referrerPolicy="no-referrer"
                         className="max-h-[480px] w-auto object-contain border border-slate-300 p-2 bg-white"
