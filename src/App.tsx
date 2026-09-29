@@ -19,6 +19,11 @@ import {
   ChevronRight,
   Building2,
   UserCheck,
+  BarChart3,
+  Settings,
+  Users,
+  Menu,
+  X,
 } from 'lucide-react';
 import {
   ActiveModule,
@@ -105,6 +110,7 @@ export default function App() {
   const [showDemoGuide, setShowDemoGuide] = useState<boolean>(false);
   const [activeStageIndex, setActiveStageIndex] = useState<number>(5);
   const [showPilotModal, setShowPilotModal] = useState<boolean>(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   // Firebase Auth & Cloud Sync state
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
@@ -1679,18 +1685,22 @@ export default function App() {
     return readyCards.length;
   };
 
-  // Desktop navigation items strictly for Operations Administrator role
+  // Desktop navigation items strictly structured per Objective 2:
+  // Overview -> Control Tower / Dashboard
+  // Operations -> Work Orders, Devices, Technicians, Allocations
+  // Intelligence -> Reports, Analytics
+  // Administration -> Settings, Users
   const adminNavItems: {
     id: ActiveModule;
     label: string;
-    group: 'Operations & Dispatch' | 'Inventory & Compliance';
-    count: number;
+    group: 'Overview' | 'Operations' | 'Intelligence';
+    count?: number;
     icon: React.ComponentType<{ className?: string }>;
   }[] = [
     {
       id: 'control-tower',
-      label: 'Operations Dashboard',
-      group: 'Operations & Dispatch',
+      label: 'Control Tower',
+      group: 'Overview',
       count:
         devices.filter((d) => d.status === 'Investigation').length +
         workOrders.filter((w) => w.status === 'Exception').length,
@@ -1698,39 +1708,335 @@ export default function App() {
     },
     {
       id: 'work-orders',
-      label: 'Work Order Register',
-      group: 'Operations & Dispatch',
+      label: 'Work Orders',
+      group: 'Operations',
       count: workOrders.length,
       icon: ClipboardList,
     },
     {
-      id: 'tech-allocation',
-      label: 'Crew & Stock Dispatch',
-      group: 'Operations & Dispatch',
-      count: technicians.length,
-      icon: Truck,
-    },
-    {
       id: 'stock-control',
-      label: 'Meter Asset Ledger',
-      group: 'Inventory & Compliance',
+      label: 'Devices',
+      group: 'Operations',
       count: devices.length,
       icon: Package,
     },
     {
+      id: 'tech-allocation',
+      label: 'Technicians',
+      group: 'Operations',
+      count: technicians.length,
+      icon: Users,
+    },
+    {
+      id: 'field-capture',
+      label: 'Allocations & Field',
+      group: 'Operations',
+      count: devices.filter((d) => d.status === 'Allocated').length,
+      icon: Truck,
+    },
+    {
       id: 'job-cards',
-      label: 'Commissioning Sheets',
-      group: 'Inventory & Compliance',
+      label: 'Reports',
+      group: 'Intelligence',
       count: jobCards.length,
       icon: FileCheck2,
     },
   ];
 
   const activeNavMeta = adminNavItems.find((i) => i.id === activeModule) || {
-    id: 'field-capture' as ActiveModule,
-    label: 'Field Mobile Terminal',
-    group: 'Operations & Dispatch',
+    id: 'control-tower' as ActiveModule,
+    label: 'Control Tower',
+    group: 'Overview',
   };
+
+  const renderSidebarNavContent = (isMobile = false) => (
+    <div className="flex flex-col justify-between h-full">
+      <div>
+        {/* Brand Header */}
+        <div className="h-16 px-5 border-b border-slate-800/80 flex items-center justify-between">
+          <a
+            href="#control-tower"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavigate('control-tower');
+              if (isMobile) setMobileNavOpen(false);
+            }}
+            className="flex items-center gap-3 text-white font-semibold tracking-tight text-base"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+              <Shield className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold tracking-wide text-white leading-none">
+                PRIMECHAIN
+              </span>
+              <span className="text-[11px] font-normal text-slate-400 mt-1 leading-none">
+                Operations Platform
+              </span>
+            </div>
+          </a>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Organization Context */}
+        <div className="p-4 border-b border-slate-800/70">
+          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800/90 space-y-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-white truncate">
+              <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate">LightUp Enterprise</span>
+            </div>
+            <div className="text-[11px] font-mono text-slate-400 truncate">
+              City Power JHB · SDC Randburg
+            </div>
+          </div>
+        </div>
+
+        {/* Structured Platform Navigation */}
+        <div className="p-3.5 space-y-6">
+          {/* Group 1: Overview */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Overview
+            </div>
+            {adminNavItems
+              .filter((i) => i.group === 'Overview')
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = activeModule === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleNavigate(item.id);
+                      if (isMobile) setMobileNavOpen(false);
+                    }}
+                    className={`w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 truncate">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          isActive ? 'text-white' : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.count !== undefined && (
+                      <span
+                        className={`font-mono text-[11px] tabular-nums ${
+                          isActive ? 'text-blue-100' : 'text-slate-500'
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* Group 2: Operations */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Operations
+            </div>
+            {adminNavItems
+              .filter((i) => i.group === 'Operations')
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = activeModule === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleNavigate(item.id);
+                      if (isMobile) setMobileNavOpen(false);
+                    }}
+                    className={`w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 truncate">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          isActive ? 'text-white' : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.count !== undefined && (
+                      <span
+                        className={`font-mono text-[11px] tabular-nums ${
+                          isActive ? 'text-blue-100' : 'text-slate-500'
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* Group 3: Intelligence */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Intelligence
+            </div>
+            {adminNavItems
+              .filter((i) => i.group === 'Intelligence')
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = activeModule === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleNavigate(item.id);
+                      if (isMobile) setMobileNavOpen(false);
+                    }}
+                    className={`w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 truncate">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          isActive ? 'text-white' : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.count !== undefined && (
+                      <span
+                        className={`font-mono text-[11px] tabular-nums ${
+                          isActive ? 'text-blue-100' : 'text-slate-500'
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            <button
+              type="button"
+              onClick={() => {
+                handleNavigate('control-tower');
+                if (isMobile) setMobileNavOpen(false);
+              }}
+              className="w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-white/[0.05] hover:text-slate-100 transition-all cursor-pointer"
+            >
+              <span className="flex items-center gap-3 truncate">
+                <BarChart3 className="w-4 h-4 shrink-0 text-slate-400" />
+                <span className="truncate">Analytics</span>
+              </span>
+              <span className="font-mono text-[11px] text-emerald-400">
+                100%
+              </span>
+            </button>
+          </div>
+
+          {/* Group 4: Administration */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Administration
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPilotModal(true);
+                if (isMobile) setMobileNavOpen(false);
+              }}
+              className="w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-white/[0.05] hover:text-slate-100 transition-all cursor-pointer"
+            >
+              <span className="flex items-center gap-3 truncate">
+                <Settings className="w-4 h-4 shrink-0 text-slate-400" />
+                <span className="truncate">Settings</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPilotModal(true);
+                if (isMobile) setMobileNavOpen(false);
+              }}
+              className="w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-white/[0.05] hover:text-slate-100 transition-all cursor-pointer"
+            >
+              <span className="flex items-center gap-3 truncate">
+                <UserCheck className="w-4 h-4 shrink-0 text-slate-400" />
+                <span className="truncate">Users &amp; Roles</span>
+              </span>
+              <span className="font-mono text-[11px] text-slate-500">RBAC</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Operator Session & System Controls */}
+      <div className="p-4 border-t border-slate-800/80 space-y-3 bg-[#070B14]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-white truncate">
+              {currentUser?.displayName || 'Skhumbuzo'}
+            </div>
+            <div className="text-[11px] text-slate-400 truncate">
+              Operations Administrator
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetDemoData}
+            title="Reset Operational Shift Data"
+            className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              handleSelectRoleAndUser('technician', loggedInTechId);
+              if (isMobile) setMobileNavOpen(false);
+            }}
+            className="px-2.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium text-slate-200 text-center transition-colors cursor-pointer truncate"
+          >
+            Tech View
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowPilotModal(true);
+              if (isMobile) setMobileNavOpen(false);
+            }}
+            className="px-2.5 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-xs font-medium text-blue-300 text-center transition-colors cursor-pointer truncate"
+          >
+            Role &amp; Sync
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleSelectRoleAndUser = (
     nextRole: 'admin' | 'technician',
@@ -1862,11 +2168,11 @@ export default function App() {
   }
 
   // =========================================================================
-  // ROLE 2: OPERATIONS ADMINISTRATOR OPERATING VIEW (ENTERPRISE ERP WORKSPACE)
+  // ROLE 2: OPERATIONS ADMINISTRATOR OPERATING VIEW (SAAS PLATFORM WORKSPACE)
   // Sidebar Navigation (256px) + Context Breadcrumb Top Bar + High-Density Canvas
   // =========================================================================
   return (
-    <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row bg-[#F1F5F9] text-slate-900">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row bg-[#F8FAFC] text-slate-900">
       <OfflineIndicator />
 
       <PilotLaunchModal
@@ -1894,227 +2200,65 @@ export default function App() {
         onSelectRoleAndUser={handleSelectRoleAndUser}
       />
 
+      {/* Mobile / Tablet Slide-Over Sidebar Drawer */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex no-print">
+          <div
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <aside className="relative w-64 max-w-[80vw] bg-[#0B1120] text-slate-300 h-full z-10 shadow-2xl select-none">
+            {renderSidebarNavContent(true)}
+          </aside>
+        </div>
+      )}
+
       {/* =====================================================================
           ENTERPRISE LEFT SIDEBAR NAVIGATION (256px Fixed on Desktop)
          ===================================================================== */}
-      <aside className="hidden lg:flex lg:w-64 bg-[#0B1120] text-slate-300 border-r border-slate-800 flex-col justify-between shrink-0 select-none no-print">
-        <div>
-          {/* Brand Header */}
-          <div className="h-14 px-5 border-b border-slate-800/90 flex items-center justify-between">
-            <a
-              href="#control-tower"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavigate('control-tower');
-              }}
-              className="flex items-center gap-2.5 text-white font-semibold tracking-tight text-base"
-            >
-              <div className="w-7 h-7 rounded bg-blue-600 flex items-center justify-center text-white shadow-xs">
-                <Shield className="w-4 h-4" />
-              </div>
-              <span>PrimeChain</span>
-            </a>
-            <span className="text-[11px] font-mono text-slate-500">ERP 2.4</span>
-          </div>
-
-          {/* Organization / Contract Context Selector */}
-          <div className="p-3.5 border-b border-slate-800/80">
-            <div className="p-2.5 rounded bg-slate-900/90 border border-slate-800/90 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-white truncate">
-                <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="truncate">LightUp Enterprise</span>
-              </div>
-              <div className="text-[11px] font-mono text-slate-400 truncate">
-                City Power JHB · SDC Randburg
-              </div>
-            </div>
-          </div>
-
-          {/* Primary Navigation Groups */}
-          <div className="p-3 space-y-5">
-            {/* Group 1: Operations & Dispatch */}
-            <div className="space-y-1">
-              <div className="px-2.5 pb-1 text-[11px] font-semibold text-slate-500 tracking-wider">
-                Operations & Dispatch
-              </div>
-              {adminNavItems
-                .filter((i) => i.group === 'Operations & Dispatch')
-                .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeModule === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleNavigate(item.id)}
-                      className={`w-full px-2.5 py-2 rounded-md text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
-                        isActive
-                          ? 'bg-blue-600 text-white shadow-2xs'
-                          : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 truncate">
-                        <Icon
-                          className={`w-4 h-4 shrink-0 ${
-                            isActive ? 'text-white' : 'text-slate-400'
-                          }`}
-                        />
-                        <span className="truncate">{item.label}</span>
-                      </span>
-                      <span
-                        className={`font-mono text-[11px] tabular-nums ${
-                          isActive ? 'text-blue-100' : 'text-slate-500'
-                        }`}
-                      >
-                        {item.count}
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
-
-            {/* Group 2: Inventory & Compliance */}
-            <div className="space-y-1">
-              <div className="px-2.5 pb-1 text-[11px] font-semibold text-slate-500 tracking-wider">
-                Inventory & Compliance
-              </div>
-              {adminNavItems
-                .filter((i) => i.group === 'Inventory & Compliance')
-                .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeModule === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleNavigate(item.id)}
-                      className={`w-full px-2.5 py-2 rounded-md text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
-                        isActive
-                          ? 'bg-blue-600 text-white shadow-2xs'
-                          : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 truncate">
-                        <Icon
-                          className={`w-4 h-4 shrink-0 ${
-                            isActive ? 'text-white' : 'text-slate-400'
-                          }`}
-                        />
-                        <span className="truncate">{item.label}</span>
-                      </span>
-                      <span
-                        className={`font-mono text-[11px] tabular-nums ${
-                          isActive ? 'text-blue-100' : 'text-slate-500'
-                        }`}
-                      >
-                        {item.count}
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
-
-            {/* Group 3: Field Mobile Terminal */}
-            <div className="space-y-1">
-              <div className="px-2.5 pb-1 text-[11px] font-semibold text-slate-500 tracking-wider">
-                Field Operations
-              </div>
-              <button
-                type="button"
-                onClick={() => handleNavigate('field-capture')}
-                className={`w-full px-2.5 py-2 rounded-md text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
-                  activeModule === 'field-capture'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-2.5 truncate">
-                  <Smartphone
-                    className={`w-4 h-4 shrink-0 ${
-                      activeModule === 'field-capture'
-                        ? 'text-white'
-                        : 'text-slate-400'
-                    }`}
-                  />
-                  <span className="truncate">Field Mobile Console</span>
-                </span>
-                <span className="font-mono text-[10px] text-slate-400">PWA</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Operator Session & System Controls */}
-        <div className="p-3.5 border-t border-slate-800/90 space-y-2.5 bg-[#080D1A]">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-white truncate">
-                {currentUser?.displayName || 'R. Naidoo'}
-              </div>
-              <div className="text-[11px] text-slate-400 truncate">
-                Operations Administrator
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleResetDemoData}
-              title="Reset Operational Shift Data"
-              className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleSelectRoleAndUser('technician', loggedInTechId)}
-              className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-medium text-slate-200 text-center transition-colors cursor-pointer truncate"
-            >
-              Tech View
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowPilotModal(true)}
-              className="px-2.5 py-1.5 rounded bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-[11px] font-medium text-blue-300 text-center transition-colors cursor-pointer truncate"
-            >
-              Access & Sync
-            </button>
-          </div>
-        </div>
+      <aside className="hidden lg:flex lg:w-64 bg-[#0B1120] text-slate-300 border-r border-slate-800/80 flex-col justify-between shrink-0 select-none no-print">
+        {renderSidebarNavContent(false)}
       </aside>
 
       {/* =====================================================================
-          MAIN ENTERPRISE WORKSPACE COLUMN
+          MAIN SAAS WORKSPACE COLUMN
          ===================================================================== */}
       <div className="flex-1 flex flex-col min-w-0 lg:overflow-hidden">
         {/* Top Bar Contract: Strict 1-row, 3-zone header */}
-        <header className="bg-white border-b border-slate-200 h-14 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 no-print">
-          {/* Zone 1: Brand / Breadcrumb Trail */}
-          <div className="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+        <header className="bg-white border-b border-slate-200/80 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 no-print">
+          {/* Zone 1: Mobile Menu Trigger + Breadcrumb Trail */}
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden p-2 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <span className="font-semibold text-slate-900 whitespace-nowrap">
               PrimeChain
             </span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
             <span className="text-slate-500 hidden sm:inline whitespace-nowrap">
               {activeNavMeta.group}
             </span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 hidden sm:inline shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 hidden sm:inline shrink-0" />
             <span className="font-semibold text-slate-900 truncate">
               {activeNavMeta.label}
             </span>
           </div>
 
-          {/* Zone 2: Horizontal Navigation Links for Tablet/Compact Viewports */}
-          <nav className="flex lg:hidden items-center gap-4 overflow-x-auto text-xs font-medium text-slate-600">
+          {/* Zone 2: Horizontal Quick Switcher for Tablet Viewports */}
+          <nav className="hidden md:flex lg:hidden items-center gap-4 overflow-x-auto text-xs font-medium text-slate-600">
             {adminNavItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleNavigate(item.id)}
-                className={`py-1 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`py-1 whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                   activeModule === item.id
-                    ? 'text-blue-700 font-semibold underline'
+                    ? 'text-blue-600 font-semibold underline'
                     : 'hover:text-slate-900'
                 }`}
               >
@@ -2124,23 +2268,25 @@ export default function App() {
           </nav>
 
           {/* Zone 3: Primary Role & Access Actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() => handleSelectRoleAndUser('technician', loggedInTechId)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5"
+              onClick={() =>
+                handleSelectRoleAndUser('technician', loggedInTechId)
+              }
+              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
             >
-              <Smartphone className="w-3.5 h-3.5 text-slate-600" />
-              <span>Technician View ({activeTechObj.name.split(' ')[0]})</span>
+              <Smartphone className="w-3.5 h-3.5 text-slate-500" />
+              <span>Technician App ({activeTechObj.name.split(' ')[0]})</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowPilotModal(true)}
-              className="px-3.5 py-1.5 text-xs font-medium text-white bg-slate-900 rounded-md hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
             >
               <UserCheck className="w-3.5 h-3.5" />
-              <span>User Rights & Role</span>
+              <span className="hidden sm:inline">Users &amp; Role</span>
             </button>
           </div>
         </header>
@@ -2161,8 +2307,8 @@ export default function App() {
           />
         )}
 
-        {/* Scrollable High-Density Enterprise Content Viewport */}
-        <main className="flex-1 lg:overflow-y-auto p-4 sm:p-6">
+        {/* Scrollable SaaS Content Viewport */}
+        <main className="flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-[1440px] mx-auto">
             {activeModule === 'control-tower' && (
               <ControlTowerView
@@ -2186,6 +2332,8 @@ export default function App() {
               <WorkOrdersView
                 workOrders={workOrders}
                 technicians={technicians}
+                jobCards={jobCards}
+                capturedPhotos={capturedPhotos}
                 onImportBatch={handleImportWorkOrderBatch}
                 onAddWorkOrder={handleAddWorkOrder}
                 onAssignTechnician={handleAssignTechnicianToWO}

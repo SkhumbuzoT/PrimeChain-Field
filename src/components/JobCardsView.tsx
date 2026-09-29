@@ -250,7 +250,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
     : '01/03/2026';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 saas-page-transition">
       {/* Hidden file inputs so user can capture/replace Photo 1 or Photo 2 from anywhere on the Job Cards screen */}
       <input
         ref={page2CameraInputRef}
@@ -267,29 +267,33 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
         className="hidden"
       />
 
-      {/* Enterprise Action Header (hidden when printing) */}
-      <section className="border border-slate-200 bg-white rounded-md p-4 no-print">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span>Compliance & Municipal Sign-Off</span>
+      {/* Enterprise SaaS Action Header (hidden when printing) */}
+      <section className="border border-slate-200/80 bg-white rounded-xl p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] no-print">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <span>Intelligence &amp; Reports</span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono">
+              <span className="font-mono text-slate-600">
                 Contractor: {companyName} ({companyPhone})
               </span>
             </div>
-            <h1 className="text-lg font-semibold text-slate-900 tracking-tight mt-0.5">
-              City Power Commissioning Sheets & Merged Photo Archive
+            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+              Reports &amp; Commissioning Sheets
             </h1>
+            <p className="text-sm text-slate-500">
+              Review official City Power commissioning sheets, photographic
+              evidence, and municipal submissions.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
               onClick={() => setShowTemplateSettings(!showTemplateSettings)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               <span>Contractor Settings</span>
             </button>
 
@@ -302,7 +306,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                     `Submitted ${count} City Power Meter Commissioning Sheet(s) to the Municipal Portal.`
                   );
                 }}
-                className="px-3.5 py-1.5 text-xs font-medium text-white bg-emerald-700 rounded hover:bg-emerald-800 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Submit All Ready ({readyCount})</span>
@@ -312,7 +316,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
             <button
               type="button"
               onClick={handlePrintPdf}
-              className="px-3.5 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>
@@ -324,62 +328,62 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
 
         {/* Collapsible Contractor Template Settings (matching Python CONFIG) */}
         {showTemplateSettings && (
-          <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs bg-slate-50 p-3 rounded">
+          <div className="mt-5 pt-5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs bg-slate-50/70 p-4 rounded-xl">
             <div>
-              <label className="block font-mono text-[11px] text-slate-500 mb-1">
-                COMPANY NAME (D. Installer)
+              <label className="block font-medium text-xs text-slate-600 mb-1.5">
+                Company Name (D. Installer)
               </label>
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded font-mono text-slate-900"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-slate-900"
               />
             </div>
             <div>
-              <label className="block font-mono text-[11px] text-slate-500 mb-1">
-                COMPANY PHONE
+              <label className="block font-medium text-xs text-slate-600 mb-1.5">
+                Company Phone
               </label>
               <input
                 type="text"
                 value={companyPhone}
                 onChange={(e) => setCompanyPhone(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded font-mono text-slate-900"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-slate-900"
               />
             </div>
             <div>
-              <label className="block font-mono text-[11px] text-slate-500 mb-1">
-                DEFAULT SDC NAME
+              <label className="block font-medium text-xs text-slate-600 mb-1.5">
+                Default SDC Name
               </label>
               <input
                 type="text"
                 value={sdcNameOverride}
                 onChange={(e) => setSdcNameOverride(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded font-mono text-slate-900"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-slate-900"
               />
             </div>
             <div>
-              <label className="block font-mono text-[11px] text-slate-500 mb-1">
-                INSTALLER OVERRIDE (OPTIONAL)
+              <label className="block font-medium text-xs text-slate-600 mb-1.5">
+                Installer Override (Optional)
               </label>
               <input
                 type="text"
                 placeholder="Uses field tech or BRUCE MHLANGA"
                 value={installerOverride}
                 onChange={(e) => setInstallerOverride(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded font-mono text-slate-900"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-slate-900"
               />
             </div>
             <div>
-              <label className="block font-mono text-[11px] text-slate-500 mb-1">
-                OTHER (EXPLAIN) TYPE
+              <label className="block font-medium text-xs text-slate-600 mb-1.5">
+                Other (Explain) Type
               </label>
               <select
                 value={otherExplainMode}
                 onChange={(e) =>
                   setOtherExplainMode(e.target.value as 'POSTPAID' | 'PREPAID')
                 }
-                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded font-mono text-slate-900"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-slate-900"
               >
                 <option value="POSTPAID">POSTPAID</option>
                 <option value="PREPAID">PREPAID</option>
@@ -389,19 +393,19 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
         )}
 
         {notice && (
-          <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-900 flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+          <div className="mt-4 p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
             <span className="font-medium">{notice}</span>
           </div>
         )}
       </section>
 
       {/* Master-Detail Split: Left Queue (4 cols, hidden on print) + Right Official City Power Document (8 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Queue */}
-        <section className="lg:col-span-4 border border-slate-200 bg-white rounded-md flex flex-col self-start overflow-hidden no-print">
-          <div className="p-3 border-b border-slate-200 space-y-2.5 bg-slate-50/50">
-            <div className="flex items-center gap-1 p-1 bg-slate-200/70 rounded">
+        <section className="lg:col-span-4 border border-slate-200/80 bg-white rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col self-start overflow-hidden no-print">
+          <div className="p-4 border-b border-slate-100 space-y-3 bg-slate-50/40">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
               {(
                 ['All', 'Ready for Review', 'Submitted to Municipality'] as const
               ).map((st) => (
@@ -409,7 +413,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
                   key={st}
                   type="button"
                   onClick={() => setFilterStatus(st)}
-                  className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-colors truncate cursor-pointer ${
+                  className={`flex-1 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors truncate cursor-pointer ${
                     filterStatus === st
                       ? 'bg-white text-slate-900 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -425,165 +429,241 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
             </div>
 
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter Account#, Address, Serial..."
-                className="w-full pl-8 pr-3 py-1 text-xs font-mono bg-white border border-slate-300 rounded focus:outline-none focus:border-blue-600"
+                placeholder="Filter account, address, serial..."
+                className="w-full pl-9 pr-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
               />
             </div>
           </div>
 
-          <div className="divide-y divide-slate-200">
-            {filteredCards.map((jc) => {
-              const isSelected = activeCard?.jobCardId === jc.jobCardId;
-              const cleanAcc = jc.accountNumber.replace(/^ACC-|^MPT-/, '');
-              const hasRealCameraPhoto =
-                Boolean(jc.photos?.oldMeterUrl?.startsWith('data:')) ||
-                Boolean(jc.photos?.newMeterUrl?.startsWith('data:'));
-              return (
-                <button
-                  key={jc.jobCardId}
-                  type="button"
-                  onClick={() => onSelectJobCard(jc.jobCardId)}
-                  className={`w-full text-left p-3.5 transition-colors cursor-pointer space-y-1 ${
-                    isSelected ? 'bg-blue-50/60' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="font-semibold text-slate-900">
-                      FINAL_JOB_CARD_{cleanAcc}.pdf
-                    </span>
-                    <span
-                      className={
-                        jc.reviewStatus === 'Submitted to Municipality'
-                          ? 'text-emerald-700 font-semibold text-[11px]'
-                          : 'text-blue-700 font-semibold text-[11px]'
-                      }
-                    >
-                      {jc.reviewStatus === 'Submitted to Municipality'
-                        ? 'SUBMITTED'
-                        : 'READY'}
-                    </span>
-                  </div>
-
-                  {hasRealCameraPhoto && (
-                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px] font-semibold">
-                      <Camera className="w-3 h-3" />
-                      <span>LIVE CAPTURED CAMERA PHOTOS ATTACHED</span>
+          <div className="divide-y divide-slate-100">
+            {filteredCards.length === 0 ? (
+              <div className="p-10 text-center space-y-2">
+                <div className="text-sm font-semibold text-slate-900">
+                  No reports to display
+                </div>
+                <p className="text-xs text-slate-500">
+                  No commissioning sheets match your current filter.
+                </p>
+              </div>
+            ) : (
+              filteredCards.map((jc) => {
+                const isSelected = activeCard?.jobCardId === jc.jobCardId;
+                const cleanAcc = jc.accountNumber.replace(/^ACC-|^MPT-/, '');
+                const hasRealCameraPhoto =
+                  Boolean(jc.photos?.oldMeterUrl?.startsWith('data:')) ||
+                  Boolean(jc.photos?.newMeterUrl?.startsWith('data:'));
+                return (
+                  <button
+                    key={jc.jobCardId}
+                    type="button"
+                    onClick={() => onSelectJobCard(jc.jobCardId)}
+                    className={`w-full text-left p-4 transition-colors cursor-pointer space-y-1.5 ${
+                      isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/80'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="font-semibold text-slate-900">
+                        {jc.jobCardId} · {jc.workOrderNumber}
+                      </span>
+                      <span
+                        className={
+                          jc.reviewStatus === 'Submitted to Municipality'
+                            ? 'text-emerald-700 font-semibold text-xs'
+                            : 'text-blue-600 font-semibold text-xs'
+                        }
+                      >
+                        {jc.reviewStatus === 'Submitted to Municipality'
+                          ? 'SUBMITTED'
+                          : 'READY'}
+                      </span>
                     </div>
-                  )}
 
-                  <div className="text-xs font-medium text-slate-900">
-                    {jc.address}, {jc.suburb}
-                  </div>
+                    {hasRealCameraPhoto && (
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-mono text-[11px] font-semibold">
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Live Captured Camera Photos Attached</span>
+                      </div>
+                    )}
 
-                  <div className="text-[11px] text-slate-600 font-mono">
-                    Acc: {cleanAcc} · WO: {jc.workOrderNumber} · Old #{jc.oldDeviceSerial} → New #
-                    {jc.newDeviceSerial}
-                  </div>
+                    <div className="text-sm font-medium text-slate-900">
+                      {jc.address}, {jc.suburb}
+                    </div>
 
-                  <div className="text-[11px] text-slate-500">
-                    Installer: {jc.technicianName.toUpperCase()} ·{' '}
-                    {formatToCityPowerDate(jc.installationDate)}
-                  </div>
-                </button>
-              );
-            })}
+                    <div className="text-xs text-slate-500 font-mono">
+                      Acc: {cleanAcc} · Old #{jc.oldDeviceSerial} → New #
+                      {jc.newDeviceSerial}
+                    </div>
+
+                    <div className="text-xs text-slate-400">
+                      Installer: {jc.technicianName} ·{' '}
+                      {formatToCityPowerDate(jc.installationDate)}
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </section>
 
         {/* Right Column: Official City Power Johannesburg Template + Merged Photo Pages */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Page Switcher Bar (hidden on print) */}
+        <div className="lg:col-span-8 space-y-5">
+          {/* Objective 5 — SaaS Record Summary Header + Page Switcher Bar (hidden on print) */}
           {activeCard && (
-            <div className="bg-white border border-slate-200 rounded-md p-2.5 flex flex-wrap items-center justify-between gap-3 no-print">
-              <div className="flex items-center gap-1 p-1 bg-slate-200/70 rounded text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPageView('all')}
-                  className={`px-2.5 py-1 rounded font-medium flex items-center gap-1.5 cursor-pointer ${
-                    pageView === 'all'
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Full Merged PDF (3 Pages)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPageView('sheet')}
-                  className={`px-2.5 py-1 rounded font-medium flex items-center gap-1.5 cursor-pointer ${
-                    pageView === 'sheet'
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Page 1: Commissioning Sheet</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPageView('photos')}
-                  className={`px-2.5 py-1 rounded font-medium flex items-center gap-1.5 cursor-pointer ${
-                    pageView === 'photos'
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>Pages 2–3: Attached Meter Photos</span>
-                </button>
+            <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-4 no-print">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <div className="text-xs font-mono text-slate-400">
+                    COMMISSIONING RECORD · {activeCard.workOrderNumber}
+                  </div>
+                  <div className="flex items-baseline gap-3 mt-0.5">
+                    <h2 className="text-xl font-semibold font-mono text-slate-900">
+                      {activeCard.jobCardId}
+                    </h2>
+                    <span
+                      className={`text-xs font-mono font-semibold ${
+                        activeCard.reviewStatus === 'Submitted to Municipality'
+                          ? 'text-emerald-700'
+                          : 'text-blue-600'
+                      }`}
+                    >
+                      {activeCard.reviewStatus === 'Submitted to Municipality'
+                        ? 'SUBMITTED TO CITY POWER'
+                        : 'READY FOR REVIEW'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {onUpdateJobCardPhoto && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => page2CameraInputRef.current?.click()}
+                        className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-blue-600" />
+                        <span>
+                          {resolvedOldPhotoUrl.startsWith('data:')
+                            ? '✓ Photo 1 (Retake)'
+                            : 'Attach Photo 1 (Page 2)'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => page3CameraInputRef.current?.click()}
+                        className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-blue-600" />
+                        <span>
+                          {resolvedNewPhotoUrl.startsWith('data:')
+                            ? '✓ Photo 2 (Retake)'
+                            : 'Attach Photo 2 (Page 3)'}
+                        </span>
+                      </button>
+                    </>
+                  )}
+
+                  {activeCard.reviewStatus !== 'Submitted to Municipality' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSubmitToMunicipality(activeCard.jobCardId);
+                        setNotice(
+                          `FINAL_JOB_CARD_${mappedAccount}.pdf approved and submitted to City Power.`
+                        );
+                      }}
+                      className="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Approve &amp; Submit</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {onUpdateJobCardPhoto && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => page2CameraInputRef.current?.click()}
-                      className="px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Camera className="w-3.5 h-3.5 text-blue-600" />
-                      <span>
-                        {resolvedOldPhotoUrl.startsWith('data:')
-                          ? '✓ Photo 1 (Retake)'
-                          : 'Attach Photo 1 (Page 2)'}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => page3CameraInputRef.current?.click()}
-                      className="px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Camera className="w-3.5 h-3.5 text-blue-600" />
-                      <span>
-                        {resolvedNewPhotoUrl.startsWith('data:')
-                          ? '✓ Photo 2 (Retake)'
-                          : 'Attach Photo 2 (Page 3)'}
-                      </span>
-                    </button>
-                  </>
-                )}
+              {/* Overview Metadata Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <div className="text-slate-500">Customer &amp; Account</div>
+                  <div className="font-semibold text-slate-900 mt-0.5">
+                    {activeCard.customerName}
+                  </div>
+                  <div className="font-mono text-slate-500">
+                    {activeCard.accountNumber}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Service Address</div>
+                  <div className="font-medium text-slate-900 mt-0.5">
+                    {activeCard.address}, {activeCard.suburb}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Technician</div>
+                  <div className="font-medium text-slate-900 mt-0.5">
+                    {activeCard.technicianName}
+                  </div>
+                  <div className="font-mono text-slate-500">
+                    {activeCard.employeeCode}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Meter Swap</div>
+                  <div className="font-mono font-semibold text-slate-900 mt-0.5">
+                    #{activeCard.oldDeviceSerial} → #
+                    {activeCard.newDeviceSerial}
+                  </div>
+                  <div className="font-mono text-slate-500">
+                    Seal {activeCard.sealNumber}
+                  </div>
+                </div>
+              </div>
 
-                {activeCard.reviewStatus !== 'Submitted to Municipality' && (
+              {/* Document View Switcher */}
+              <div className="pt-2 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
                   <button
                     type="button"
-                    onClick={() => {
-                      onSubmitToMunicipality(activeCard.jobCardId);
-                      setNotice(
-                        `FINAL_JOB_CARD_${mappedAccount}.pdf approved and submitted to City Power.`
-                      );
-                    }}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded flex items-center gap-1.5 cursor-pointer"
+                    onClick={() => setPageView('all')}
+                    className={`px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      pageView === 'all'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Approve & Submit to City Power</span>
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Full Merged PDF (3 Pages)</span>
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => setPageView('sheet')}
+                    className={`px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      pageView === 'sheet'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Page 1: Commissioning Sheet</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPageView('photos')}
+                    className={`px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      pageView === 'photos'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>Pages 2–3: Evidence Photos</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
