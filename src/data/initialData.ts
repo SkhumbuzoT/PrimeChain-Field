@@ -966,8 +966,8 @@ export const INITIAL_PLATFORM_USERS: PlatformUser[] = [
   },
   {
     id: 'USR-ADMIN-02',
-    name: 'Nomsa Dlamini',
-    emailOrCode: 'nomsa@lightup.co.za',
+    name: 'Bruce Mhlanga',
+    emailOrCode: 'bruce@lightup.co.za',
     pinOrPassword: '2026',
     role: 'admin',
     title: 'Central Store & Dispatch Supervisor',

@@ -78,7 +78,7 @@ const STORAGE_KEYS = {
   CAPTURED_PHOTOS: 'primechain_captured_photos_v3',
   ADMIN_NAME: 'primechain_admin_name_v1',
   ADMIN_TITLE: 'primechain_admin_title_v1',
-  PLATFORM_USERS: 'primechain_platform_users_v1',
+  PLATFORM_USERS: 'primechain_platform_users_v2',
   ACTIVE_SESSION_USER_ID: 'primechain_active_session_user_id_v1',
 };
 
