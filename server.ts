@@ -20,6 +20,7 @@ interface SharedPilotState {
   workOrders: unknown[] | null;
   technicians: unknown[] | null;
   jobCards: unknown[] | null;
+  platformUsers?: unknown[] | null;
   capturedPhotos?: CapturedPhotosState;
 }
 
@@ -279,8 +280,15 @@ if ('serviceWorker' in navigator) {
 
   // Update shared operational state from either Desktop or Phone
   app.post('/api/sync', (req, res) => {
-    const { devices, workOrders, technicians, jobCards, capturedPhotos, reset } =
-      req.body || {};
+    const {
+      devices,
+      workOrders,
+      technicians,
+      jobCards,
+      platformUsers,
+      capturedPhotos,
+      reset,
+    } = req.body || {};
 
     if (reset) {
       sharedState = {
@@ -290,6 +298,9 @@ if ('serviceWorker' in navigator) {
         workOrders: Array.isArray(workOrders) ? workOrders : sharedState.workOrders,
         technicians: Array.isArray(technicians) ? technicians : sharedState.technicians,
         jobCards: Array.isArray(jobCards) ? jobCards : sharedState.jobCards,
+        platformUsers: Array.isArray(platformUsers)
+          ? platformUsers
+          : sharedState.platformUsers,
         capturedPhotos: {},
       };
       saveState(sharedState);
@@ -299,6 +310,10 @@ if ('serviceWorker' in navigator) {
     }
 
     let changed = false;
+    if (Array.isArray(platformUsers)) {
+      sharedState.platformUsers = platformUsers;
+      changed = true;
+    }
     if (capturedPhotos && typeof capturedPhotos === 'object') {
       sharedState.capturedPhotos = {
         oldMeterUrl:

@@ -30,6 +30,9 @@ interface ControlTowerViewProps {
   jobCards: JobCardRecord[];
   onNavigate: (module: ActiveModule, filterHint?: string) => void;
   onSelectJobCard: (jobCardId: string) => void;
+  operatorName?: string;
+  operatorRoleTitle?: string;
+  onOpenProfileSettings?: () => void;
 }
 
 export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
@@ -39,6 +42,9 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
   jobCards,
   onNavigate,
   onSelectJobCard,
+  operatorName = 'Skhumbuzo',
+  operatorRoleTitle = 'Operations Administrator',
+  onOpenProfileSettings,
 }) => {
   const [traceQuery, setTraceQuery] = useState('');
   const [selectedTraceSerial, setSelectedTraceSerial] = useState<string | null>(
@@ -144,9 +150,21 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                 Operations Active
               </span>
             </div>
-            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
-              Good afternoon, Skhumbuzo
-            </h1>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+                Good afternoon, {operatorName}
+              </h1>
+              {onOpenProfileSettings && (
+                <button
+                  type="button"
+                  onClick={onOpenProfileSettings}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 border border-slate-200/80 transition-colors cursor-pointer"
+                  title="Switch user profile or customize your name"
+                >
+                  {operatorRoleTitle} · Switch Profile
+                </button>
+              )}
+            </div>
             <p className="text-sm text-slate-500">
               Here&apos;s what&apos;s happening across your operation.
             </p>

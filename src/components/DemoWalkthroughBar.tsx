@@ -150,7 +150,7 @@ export const DemoWalkthroughBar: React.FC<DemoWalkthroughBarProps> = ({
               How PrimeChain Works
             </div>
             <p className="text-xs text-slate-200 leading-relaxed">
-              {currentStage.solutionStatement}
+              {currentStage.operationalMechanism}
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export const DemoWalkthroughBar: React.FC<DemoWalkthroughBarProps> = ({
               Action
             </div>
             <p className="text-xs text-blue-100 leading-relaxed">
-              {currentStage.actionPrompt}
+              {currentStage.demoActionHint}
             </p>
           </div>
         </div>

@@ -1,4 +1,10 @@
-import { MeterDevice, WorkOrder, Technician, JobCardRecord } from '../types';
+import {
+  MeterDevice,
+  WorkOrder,
+  Technician,
+  JobCardRecord,
+  PlatformUser,
+} from '../types';
 import oldMeterImg from '../assets/images/photo_old_meter_1790461725546.jpg';
 import newMeterImg from '../assets/images/photo_new_meter_1790461738050.jpg';
 import siteInstallImg from '../assets/images/photo_site_install_1790461748493.jpg';
@@ -946,3 +952,71 @@ export const DEMO_STAGES: DemoStage[] = [
     demoActionHint: 'Switch between Full Merged PDF, Page 1, and Pages 2–3, then click "Approve & Submit" or "Export PDF".',
   },
 ];
+
+export const INITIAL_PLATFORM_USERS: PlatformUser[] = [
+  {
+    id: 'USR-ADMIN-01',
+    name: 'Skhumbuzo',
+    emailOrCode: 'skhumbuzo@lightup.co.za',
+    pinOrPassword: '2026',
+    role: 'admin',
+    title: 'Operations Administrator',
+    status: 'Active',
+    createdAt: '01 September 2026',
+  },
+  {
+    id: 'USR-ADMIN-02',
+    name: 'Nomsa Dlamini',
+    emailOrCode: 'nomsa@lightup.co.za',
+    pinOrPassword: '2026',
+    role: 'admin',
+    title: 'Central Store & Dispatch Supervisor',
+    status: 'Active',
+    createdAt: '05 September 2026',
+  },
+  {
+    id: 'USR-TECH-01',
+    name: 'Sipho Ndlovu',
+    emailOrCode: 'SN-0042',
+    pinOrPassword: '1111',
+    role: 'technician',
+    title: 'Senior Field Technician · JW 44 GP',
+    technicianId: 'TECH-01',
+    status: 'Active',
+    createdAt: '10 September 2026',
+  },
+  {
+    id: 'USR-TECH-06',
+    name: 'Bruce Mhlanga',
+    emailOrCode: 'BM-0019',
+    pinOrPassword: '2222',
+    role: 'technician',
+    title: 'Field Technician · LU 01 GP',
+    technicianId: 'TECH-06',
+    status: 'Active',
+    createdAt: '10 September 2026',
+  },
+  {
+    id: 'USR-TECH-02',
+    name: 'Thabo Mokoena',
+    emailOrCode: 'EMP-4018',
+    pinOrPassword: '3333',
+    role: 'technician',
+    title: 'Field Technician · KT 19 GP',
+    technicianId: 'TECH-02',
+    status: 'Active',
+    createdAt: '12 September 2026',
+  },
+  {
+    id: 'USR-TECH-03',
+    name: 'Lerato Dlamini',
+    emailOrCode: 'EMP-4025',
+    pinOrPassword: '4444',
+    role: 'technician',
+    title: 'Field Technician · LM 82 GP',
+    technicianId: 'TECH-03',
+    status: 'Active',
+    createdAt: '12 September 2026',
+  },
+];
+

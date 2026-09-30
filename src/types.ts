@@ -114,3 +114,16 @@ export type ActiveModule =
   | 'tech-allocation'
   | 'field-capture'
   | 'job-cards';
+
+export interface PlatformUser {
+  id: string;
+  name: string;
+  emailOrCode: string;
+  pinOrPassword: string;
+  role: 'admin' | 'technician';
+  title: string;
+  technicianId?: string;
+  status: 'Active' | 'Suspended';
+  createdAt: string;
+}
+

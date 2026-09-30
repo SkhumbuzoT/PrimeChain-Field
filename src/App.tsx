@@ -25,6 +25,7 @@ import {
   Menu,
   X,
   Compass,
+  LogOut,
 } from 'lucide-react';
 import {
   ActiveModule,
@@ -32,12 +33,14 @@ import {
   WorkOrder,
   Technician,
   JobCardRecord,
+  PlatformUser,
 } from './types';
 import {
   INITIAL_DEVICES,
   INITIAL_WORK_ORDERS,
   INITIAL_TECHNICIANS,
   INITIAL_JOB_CARDS,
+  INITIAL_PLATFORM_USERS,
   DEFAULT_PHOTOS,
   DEMO_STAGES,
 } from './data/initialData';
@@ -50,6 +53,7 @@ import { JobCardsView } from './components/JobCardsView';
 import { DemoWalkthroughBar } from './components/DemoWalkthroughBar';
 import { PWAInstallButton, OfflineIndicator } from './components/PWAInstallButton';
 import { PilotLaunchModal } from './components/PilotLaunchModal';
+import { LoginGateView } from './components/LoginGateView';
 import {
   auth,
   db,
@@ -72,6 +76,10 @@ const STORAGE_KEYS = {
   TECHNICIANS: 'primechain_technicians_v3',
   JOB_CARDS: 'primechain_jobcards_v3',
   CAPTURED_PHOTOS: 'primechain_captured_photos_v3',
+  ADMIN_NAME: 'primechain_admin_name_v1',
+  ADMIN_TITLE: 'primechain_admin_title_v1',
+  PLATFORM_USERS: 'primechain_platform_users_v1',
+  ACTIVE_SESSION_USER_ID: 'primechain_active_session_user_id_v1',
 };
 
 export default function App() {
@@ -98,6 +106,59 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     return params.get('tech') || 'TECH-01';
   });
+
+  // Multi-user Admin Profile state (supports ?user=Name&title=Role or localStorage persistence)
+  const [adminName, setAdminName] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'Skhumbuzo';
+    const params = new URLSearchParams(window.location.search);
+    const urlUser = params.get('user') || params.get('adminName');
+    if (urlUser && urlUser.trim()) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.ADMIN_NAME, urlUser.trim());
+      } catch {
+        // ignore
+      }
+      return urlUser.trim();
+    }
+    try {
+      return localStorage.getItem(STORAGE_KEYS.ADMIN_NAME) || 'Skhumbuzo';
+    } catch {
+      return 'Skhumbuzo';
+    }
+  });
+
+  const [adminRoleTitle, setAdminRoleTitle] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'Operations Administrator';
+    const params = new URLSearchParams(window.location.search);
+    const urlTitle = params.get('title') || params.get('adminTitle');
+    if (urlTitle && urlTitle.trim()) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.ADMIN_TITLE, urlTitle.trim());
+      } catch {
+        // ignore
+      }
+      return urlTitle.trim();
+    }
+    try {
+      return (
+        localStorage.getItem(STORAGE_KEYS.ADMIN_TITLE) ||
+        'Operations Administrator'
+      );
+    } catch {
+      return 'Operations Administrator';
+    }
+  });
+
+  const handleUpdateAdminProfile = (name: string, roleTitle: string) => {
+    setAdminName(name);
+    setAdminRoleTitle(roleTitle);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_NAME, name);
+      localStorage.setItem(STORAGE_KEYS.ADMIN_TITLE, roleTitle);
+    } catch {
+      // ignore
+    }
+  };
 
   const [activeModule, setActiveModule] = useState<ActiveModule>(() =>
     userRole === 'technician' ? 'field-capture' : 'control-tower'
@@ -156,6 +217,105 @@ export default function App() {
       return INITIAL_JOB_CARDS;
     }
   });
+
+  // Controlled Platform Users directory (supports ?invite=<base64> for cross-device Vercel sharing)
+  const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>(() => {
+    let list: PlatformUser[] = INITIAL_PLATFORM_USERS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PLATFORM_USERS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const inviteParam = params.get('invite');
+        if (inviteParam) {
+          const decoded = JSON.parse(
+            decodeURIComponent(atob(inviteParam))
+          ) as PlatformUser;
+          if (decoded && decoded.id && decoded.emailOrCode) {
+            const existsIdx = list.findIndex(
+              (u) =>
+                u.id === decoded.id ||
+                u.emailOrCode.toLowerCase() ===
+                  decoded.emailOrCode.toLowerCase()
+            );
+            if (existsIdx >= 0) {
+              list = list.map((u, i) => (i === existsIdx ? decoded : u));
+            } else {
+              list = [decoded, ...list];
+            }
+            localStorage.setItem(
+              STORAGE_KEYS.PLATFORM_USERS,
+              JSON.stringify(list)
+            );
+          }
+        }
+      } catch {
+        // ignore invalid invite payload
+      }
+    }
+    return list;
+  });
+
+  const [initialLoginId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('login') || '';
+  });
+
+  // Active authenticated user session (null = show LoginGateView)
+  const [activeSessionUser, setActiveSessionUser] =
+    useState<PlatformUser | null>(() => {
+      if (typeof window === 'undefined') return null;
+      const params = new URLSearchParams(window.location.search);
+      // If opening an invite link or explicit ?login= prompt, require sign-in
+      if (params.get('invite') || params.get('login')) {
+        return null;
+      }
+      try {
+        const savedId = localStorage.getItem(
+          STORAGE_KEYS.ACTIVE_SESSION_USER_ID
+        );
+        if (savedId === 'SIGNED_OUT') return null;
+        if (savedId) {
+          const found = platformUsers.find(
+            (u) => u.id === savedId && u.status === 'Active'
+          );
+          if (found) return found;
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    });
+
+  // Sync userRole, loggedInTechId, and adminName whenever activeSessionUser changes
+  useEffect(() => {
+    if (!activeSessionUser) return;
+    if (activeSessionUser.role === 'technician') {
+      setUserRole('technician');
+      if (activeSessionUser.technicianId) {
+        setLoggedInTechId(activeSessionUser.technicianId);
+      }
+      setActiveModule('field-capture');
+    } else {
+      setUserRole('admin');
+      setAdminName(activeSessionUser.name);
+      setAdminRoleTitle(activeSessionUser.title);
+      if (activeModule === 'field-capture') {
+        setActiveModule('control-tower');
+      }
+    }
+  }, [activeSessionUser]);
 
   const [capturedPhotos, setCapturedPhotos] = useState<{
     oldMeterUrl?: string;
@@ -399,6 +559,7 @@ export default function App() {
     workOrders?: WorkOrder[];
     technicians?: Technician[];
     jobCards?: JobCardRecord[];
+    platformUsers?: PlatformUser[];
     capturedPhotos?: { oldMeterUrl?: string; newMeterUrl?: string };
     reset?: boolean;
   }) => {
@@ -533,6 +694,15 @@ export default function App() {
           if (Array.isArray(data.devices)) setDevices(data.devices);
           if (Array.isArray(data.workOrders)) setWorkOrders(data.workOrders);
           if (Array.isArray(data.technicians)) setTechnicians(data.technicians);
+          if (Array.isArray(data.platformUsers) && data.platformUsers.length > 0) {
+            setPlatformUsers((prev) =>
+              mergeByKey(
+                data.platformUsers as PlatformUser[],
+                prev,
+                (u) => u.id
+              ).merged
+            );
+          }
           if (Array.isArray(data.jobCards)) {
             setJobCards((prev) =>
               preserveRealJobCardPhotos(data.jobCards, prev, serverCaptured)
@@ -881,6 +1051,80 @@ export default function App() {
     }
   }, [jobCards]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.PLATFORM_USERS,
+        JSON.stringify(platformUsers)
+      );
+    } catch {
+      // ignore
+    }
+  }, [platformUsers]);
+
+  const handleAuthenticateUser = (user: PlatformUser) => {
+    setActiveSessionUser(user);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION_USER_ID, user.id);
+    } catch {
+      // ignore
+    }
+    if (user.role === 'technician') {
+      setUserRole('technician');
+      if (user.technicianId) {
+        setLoggedInTechId(user.technicianId);
+      }
+      setActiveModule('field-capture');
+    } else {
+      setUserRole('admin');
+      handleUpdateAdminProfile(user.name, user.title);
+      setActiveModule('control-tower');
+    }
+  };
+
+  const handleLogoutSession = () => {
+    setActiveSessionUser(null);
+    setShowPilotModal(false);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION_USER_ID, 'SIGNED_OUT');
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAddPlatformUser = (
+    newUser: Omit<PlatformUser, 'id' | 'createdAt'>
+  ) => {
+    const created: PlatformUser = {
+      ...newUser,
+      id: `USR-${Date.now().toString().slice(-5)}`,
+      createdAt: new Date().toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }),
+    };
+    const nextUsers = [created, ...platformUsers];
+    setPlatformUsers(nextUsers);
+    pushStateToServer({ platformUsers: nextUsers });
+  };
+
+  const handleToggleUserStatus = (userId: string) => {
+    const nextUsers: PlatformUser[] = platformUsers.map((u) =>
+      u.id === userId
+        ? { ...u, status: u.status === 'Active' ? 'Suspended' : 'Active' }
+        : u
+    );
+    setPlatformUsers(nextUsers);
+    pushStateToServer({ platformUsers: nextUsers });
+  };
+
+  const handleDeletePlatformUser = (userId: string) => {
+    const nextUsers = platformUsers.filter((u) => u.id !== userId);
+    setPlatformUsers(nextUsers);
+    pushStateToServer({ platformUsers: nextUsers });
+  };
+
   const handleResetDemoData = async () => {
     setDevices(INITIAL_DEVICES);
     setWorkOrders(INITIAL_WORK_ORDERS);
@@ -1172,6 +1416,35 @@ export default function App() {
   const handleAddTechnician = (tech: Technician) => {
     const nextTechs = [...technicians, tech];
     setTechnicians(nextTechs);
+
+    // Also auto-create a Controlled Platform User account for this technician so they can log in
+    const alreadyExists = platformUsers.some(
+      (u) =>
+        u.technicianId === tech.id ||
+        u.emailOrCode.toLowerCase() === tech.employeeCode.toLowerCase()
+    );
+    if (!alreadyExists) {
+      const newTechUser: PlatformUser = {
+        id: `USR-${tech.id}`,
+        name: tech.name,
+        emailOrCode: tech.employeeCode,
+        pinOrPassword: '1111',
+        role: 'technician',
+        title: `Field Technician · ${tech.vehicleReg}`,
+        technicianId: tech.id,
+        status: 'Active',
+        createdAt: new Date().toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }),
+      };
+      const nextUsers = [newTechUser, ...platformUsers];
+      setPlatformUsers(nextUsers);
+      pushStateToServer({ technicians: nextTechs, platformUsers: nextUsers });
+      return;
+    }
+
     pushStateToServer({ technicians: nextTechs });
   };
 
@@ -1958,22 +2231,45 @@ export default function App() {
       {/* Bottom Operator Session */}
       <div className="p-4 border-t border-slate-800/80 bg-[#070B14]">
         <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-white truncate">
-              {currentUser?.displayName || 'Skhumbuzo'}
-            </div>
-            <div className="text-[11px] text-slate-400 truncate">
-              Operations Administrator
-            </div>
-          </div>
           <button
             type="button"
-            onClick={handleResetDemoData}
-            title="Reset Operational Shift Data"
-            className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            onClick={() => {
+              setShowPilotModal(true);
+              if (isMobile) setMobileNavOpen(false);
+            }}
+            title="Manage user accounts & settings"
+            className="min-w-0 text-left hover:opacity-90 transition-opacity cursor-pointer flex-1"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <div className="text-xs font-semibold text-white truncate">
+              {activeSessionUser?.name ||
+                adminName ||
+                currentUser?.displayName ||
+                'Skhumbuzo'}
+            </div>
+            <div className="text-[11px] text-slate-400 truncate">
+              {activeSessionUser?.title ||
+                adminRoleTitle ||
+                'Operations Administrator'}
+            </div>
           </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleResetDemoData}
+              title="Reset Operational Shift Data"
+              className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleLogoutSession}
+              title="Sign Out of PrimeChain"
+              className="p-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800/60 text-rose-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1998,38 +2294,67 @@ export default function App() {
     technicians.find((t) => t.id === loggedInTechId) || technicians[0];
 
   // =========================================================================
+  // CONTROLLED ACCESS GATE: REQUIRE AUTHORIZED USER SIGN-IN
+  // =========================================================================
+  if (!activeSessionUser) {
+    return (
+      <>
+        <OfflineIndicator />
+        <LoginGateView
+          users={platformUsers}
+          initialIdentifier={initialLoginId}
+          onAuthenticated={handleAuthenticateUser}
+        />
+      </>
+    );
+  }
+
+  // =========================================================================
   // ROLE 1: FIELD TECHNICIAN OPERATING VIEW (MOBILE FIELD SCREEN ONLY)
   // Under normal operating rights, technicians only have access to PrimeChain Field.
   // =========================================================================
   if (userRole === 'technician') {
+    const isAdminPreviewingTech = activeSessionUser.role === 'admin';
     return (
       <div className="min-h-screen bg-[#0B1120] text-white flex flex-col">
         <OfflineIndicator />
 
-        <PilotLaunchModal
-          isOpen={showPilotModal}
-          onClose={() => setShowPilotModal(false)}
-          user={currentUser}
-          isCloudSynced={isCloudSynced}
-          syncError={syncError}
-          onSignIn={async () => {
-            setSyncError(null);
-            const res = await signInForPilot();
-            if (!res) {
-              setSyncError(
-                'Google sign-in popup was closed or blocked. Local & offline persistence remains active.'
-              );
-            }
-          }}
-          onSignOut={async () => {
-            await signOutFromPilot();
-          }}
-          onResetCloudData={() => handlePushSeedDataToCloud()}
-          userRole={userRole}
-          loggedInTechId={loggedInTechId}
-          technicians={technicians}
-          onSelectRoleAndUser={handleSelectRoleAndUser}
-        />
+        {isAdminPreviewingTech && (
+          <PilotLaunchModal
+            isOpen={showPilotModal}
+            onClose={() => setShowPilotModal(false)}
+            user={currentUser}
+            isCloudSynced={isCloudSynced}
+            syncError={syncError}
+            onSignIn={async () => {
+              setSyncError(null);
+              const res = await signInForPilot();
+              if (!res) {
+                setSyncError(
+                  'Google sign-in popup was closed or blocked. Local & offline persistence remains active.'
+                );
+              }
+            }}
+            onSignOut={async () => {
+              await signOutFromPilot();
+            }}
+            onResetCloudData={() => handlePushSeedDataToCloud()}
+            userRole={userRole}
+            loggedInTechId={loggedInTechId}
+            technicians={technicians}
+            onSelectRoleAndUser={handleSelectRoleAndUser}
+            adminName={adminName}
+            adminRoleTitle={adminRoleTitle}
+            onUpdateAdminProfile={handleUpdateAdminProfile}
+            platformUsers={platformUsers}
+            activeSessionUser={activeSessionUser}
+            onAddPlatformUser={handleAddPlatformUser}
+            onToggleUserStatus={handleToggleUserStatus}
+            onDeletePlatformUser={handleDeletePlatformUser}
+            onSwitchSessionUser={handleAuthenticateUser}
+            onLogoutSession={handleLogoutSession}
+          />
+        )}
 
         {/* Enterprise Mobile Operator Bar */}
         <header className="bg-[#0F172A] border-b border-slate-800 px-3 sm:px-4 h-14 flex items-center justify-between no-print shrink-0">
@@ -2051,22 +2376,29 @@ export default function App() {
                     <span>LIVE</span>
                   </span>
                 </div>
-                <select
-                  value={loggedInTechId}
-                  onChange={(e) => setLoggedInTechId(e.target.value)}
-                  aria-label="Select active technician crew"
-                  className="bg-transparent text-[11px] font-mono text-blue-300 focus:outline-none cursor-pointer truncate max-w-[190px]"
-                >
-                  {technicians.map((t) => (
-                    <option
-                      key={t.id}
-                      value={t.id}
-                      className="bg-slate-900 text-white"
-                    >
-                      {t.employeeCode} · {t.name} ({t.vehicleReg})
-                    </option>
-                  ))}
-                </select>
+                {isAdminPreviewingTech ? (
+                  <select
+                    value={loggedInTechId}
+                    onChange={(e) => setLoggedInTechId(e.target.value)}
+                    aria-label="Select active technician crew"
+                    className="bg-transparent text-[11px] font-mono text-blue-300 focus:outline-none cursor-pointer truncate max-w-[190px]"
+                  >
+                    {technicians.map((t) => (
+                      <option
+                        key={t.id}
+                        value={t.id}
+                        className="bg-slate-900 text-white"
+                      >
+                        {t.employeeCode} · {t.name} ({t.vehicleReg})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-[11px] font-mono text-blue-300 truncate max-w-[200px]">
+                    {activeTechObj.employeeCode} · {activeTechObj.name} (
+                    {activeTechObj.vehicleReg})
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2084,12 +2416,22 @@ export default function App() {
                 <span>Guide</span>
               </button>
               <PWAInstallButton />
+              {isAdminPreviewingTech && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectRoleAndUser('admin')}
+                  className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 cursor-pointer whitespace-nowrap"
+                >
+                  Admin View
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setShowPilotModal(true)}
-                className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 cursor-pointer whitespace-nowrap"
+                onClick={handleLogoutSession}
+                className="px-2.5 py-1.5 rounded bg-rose-950/90 hover:bg-rose-900 border border-rose-800/70 text-xs font-medium text-rose-200 cursor-pointer whitespace-nowrap flex items-center gap-1"
               >
-                Settings
+                <LogOut className="w-3 h-3" />
+                <span>Sign Out</span>
               </button>
             </div>
           </div>
@@ -2102,7 +2444,7 @@ export default function App() {
               setActiveStageIndex(idx);
               if (mod === 'field-capture') {
                 handleSelectRoleAndUser('technician', loggedInTechId);
-              } else {
+              } else if (isAdminPreviewingTech) {
                 handleSelectRoleAndUser('admin');
                 setActiveModule(mod);
               }
@@ -2123,14 +2465,32 @@ export default function App() {
             initialHint={navigationHint}
             userRole="technician"
             loggedInTechId={loggedInTechId}
-            onSelectTechId={(id) => setLoggedInTechId(id)}
-            onSwitchRoleModal={() => setShowPilotModal(true)}
+            onSelectTechId={(id) => {
+              if (isAdminPreviewingTech) setLoggedInTechId(id);
+            }}
+            onSwitchRoleModal={() => {
+              if (isAdminPreviewingTech) {
+                setShowPilotModal(true);
+              } else {
+                handleLogoutSession();
+              }
+            }}
             isAndroidPilotMode={true}
             isCloudSynced={isCloudSynced}
-            onExitAndroidPilotMode={() => handleSelectRoleAndUser('admin')}
+            onExitAndroidPilotMode={() => {
+              if (isAdminPreviewingTech) {
+                handleSelectRoleAndUser('admin');
+              } else {
+                handleLogoutSession();
+              }
+            }}
             onSubmitInstallation={handleSubmitFieldInstallation}
             onLivePhotoCapture={handleLiveFieldPhotoCapture}
-            onInspectJobCard={handleInspectJobCard}
+            onInspectJobCard={(jobCardId) => {
+              if (isAdminPreviewingTech) {
+                handleInspectJobCard(jobCardId);
+              }
+            }}
           />
         </main>
       </div>
@@ -2168,6 +2528,16 @@ export default function App() {
         loggedInTechId={loggedInTechId}
         technicians={technicians}
         onSelectRoleAndUser={handleSelectRoleAndUser}
+        adminName={adminName}
+        adminRoleTitle={adminRoleTitle}
+        onUpdateAdminProfile={handleUpdateAdminProfile}
+        platformUsers={platformUsers}
+        activeSessionUser={activeSessionUser}
+        onAddPlatformUser={handleAddPlatformUser}
+        onToggleUserStatus={handleToggleUserStatus}
+        onDeletePlatformUser={handleDeletePlatformUser}
+        onSwitchSessionUser={handleAuthenticateUser}
+        onLogoutSession={handleLogoutSession}
       />
 
       {/* Mobile / Tablet Slide-Over Sidebar Drawer */}
@@ -2263,6 +2633,15 @@ export default function App() {
               <Settings className="w-3.5 h-3.5 text-slate-500" />
               <span>Settings</span>
             </button>
+            <button
+              type="button"
+              onClick={handleLogoutSession}
+              title={`Sign out (${activeSessionUser.name})`}
+              className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
           </div>
         </header>
 
@@ -2292,6 +2671,18 @@ export default function App() {
                 workOrders={workOrders}
                 technicians={technicians}
                 jobCards={jobCards}
+                operatorName={
+                  activeSessionUser.name ||
+                  adminName ||
+                  currentUser?.displayName ||
+                  'Skhumbuzo'
+                }
+                operatorRoleTitle={
+                  activeSessionUser.title ||
+                  adminRoleTitle ||
+                  'Operations Administrator'
+                }
+                onOpenProfileSettings={() => setShowPilotModal(true)}
                 onNavigate={(mod, hint) => {
                   if (mod === 'field-capture') {
                     if (hint) setNavigationHint(hint);
