@@ -319,9 +319,7 @@ export const JobCardsView: React.FC<JobCardsViewProps> = ({
               className="px-4 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>
-                Export FINAL_JOB_CARD_{mappedAccount || 'PDF'}.pdf
-              </span>
+              <span>Export Commissioning Sheet PDF</span>
             </button>
           </div>
         </div>

@@ -53,6 +53,7 @@ import { JobCardsView } from './components/JobCardsView';
 import { DemoWalkthroughBar } from './components/DemoWalkthroughBar';
 import { PWAInstallButton, OfflineIndicator } from './components/PWAInstallButton';
 import { PilotLaunchModal } from './components/PilotLaunchModal';
+import { ClientPresentationModal } from './components/ClientPresentationModal';
 import { LoginGateView } from './components/LoginGateView';
 import {
   auth,
@@ -172,6 +173,7 @@ export default function App() {
   const [showDemoGuide, setShowDemoGuide] = useState<boolean>(false);
   const [activeStageIndex, setActiveStageIndex] = useState<number>(5);
   const [showPilotModal, setShowPilotModal] = useState<boolean>(false);
+  const [showPresentation, setShowPresentation] = useState<boolean>(false);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   // Firebase Auth & Cloud Sync state
@@ -2054,8 +2056,8 @@ export default function App() {
         </div>
 
         {/* Organization Context */}
-        <div className="p-4 border-b border-slate-800/70">
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800/90 space-y-1">
+        <div className="p-3.5 border-b border-slate-800/80">
+          <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-0.5">
             <div className="flex items-center gap-2 text-xs font-semibold text-white truncate">
               <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span className="truncate">LightUp Enterprise</span>
@@ -2067,10 +2069,10 @@ export default function App() {
         </div>
 
         {/* Structured Platform Navigation */}
-        <div className="p-3.5 space-y-6">
+        <div className="p-3 space-y-5">
           {/* Group 1: Overview */}
           <div className="space-y-1">
-            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Overview
             </div>
             {adminNavItems
@@ -2086,24 +2088,26 @@ export default function App() {
                       handleNavigate(item.id);
                       if (isMobile) setMobileNavOpen(false);
                     }}
-                    className={`w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                       isActive
-                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                        ? 'bg-slate-800 text-white font-semibold ring-1 ring-white/10'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                     }`}
                   >
-                    <span className="flex items-center gap-3 truncate">
+                    <span className="flex items-center gap-2.5 truncate">
                       <Icon
                         className={`w-4 h-4 shrink-0 ${
-                          isActive ? 'text-white' : 'text-slate-400'
+                          isActive ? 'text-blue-400' : 'text-slate-400'
                         }`}
                       />
                       <span className="truncate">{item.label}</span>
                     </span>
                     {item.count !== undefined && (
                       <span
-                        className={`font-mono text-[11px] tabular-nums ${
-                          isActive ? 'text-blue-100' : 'text-slate-500'
+                        className={`font-mono text-[11px] tabular-nums px-1.5 py-0.5 rounded ${
+                          isActive
+                            ? 'text-blue-300 bg-slate-900'
+                            : 'text-slate-400 bg-slate-900/60'
                         }`}
                       >
                         {item.count}
@@ -2116,7 +2120,7 @@ export default function App() {
 
           {/* Group 2: Operations */}
           <div className="space-y-1">
-            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Operations
             </div>
             {adminNavItems
@@ -2132,24 +2136,26 @@ export default function App() {
                       handleNavigate(item.id);
                       if (isMobile) setMobileNavOpen(false);
                     }}
-                    className={`w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                       isActive
-                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                        ? 'bg-slate-800 text-white font-semibold ring-1 ring-white/10'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                     }`}
                   >
-                    <span className="flex items-center gap-3 truncate">
+                    <span className="flex items-center gap-2.5 truncate">
                       <Icon
                         className={`w-4 h-4 shrink-0 ${
-                          isActive ? 'text-white' : 'text-slate-400'
+                          isActive ? 'text-blue-400' : 'text-slate-400'
                         }`}
                       />
                       <span className="truncate">{item.label}</span>
                     </span>
                     {item.count !== undefined && (
                       <span
-                        className={`font-mono text-[11px] tabular-nums ${
-                          isActive ? 'text-blue-100' : 'text-slate-500'
+                        className={`font-mono text-[11px] tabular-nums px-1.5 py-0.5 rounded ${
+                          isActive
+                            ? 'text-blue-300 bg-slate-900'
+                            : 'text-slate-400 bg-slate-900/60'
                         }`}
                       >
                         {item.count}
@@ -2162,7 +2168,7 @@ export default function App() {
 
           {/* Group 3: Intelligence */}
           <div className="space-y-1">
-            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Intelligence
             </div>
             {adminNavItems
@@ -2178,24 +2184,26 @@ export default function App() {
                       handleNavigate(item.id);
                       if (isMobile) setMobileNavOpen(false);
                     }}
-                    className={`w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                       isActive
-                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100'
+                        ? 'bg-slate-800 text-white font-semibold ring-1 ring-white/10'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                     }`}
                   >
-                    <span className="flex items-center gap-3 truncate">
+                    <span className="flex items-center gap-2.5 truncate">
                       <Icon
                         className={`w-4 h-4 shrink-0 ${
-                          isActive ? 'text-white' : 'text-slate-400'
+                          isActive ? 'text-blue-400' : 'text-slate-400'
                         }`}
                       />
                       <span className="truncate">{item.label}</span>
                     </span>
                     {item.count !== undefined && (
                       <span
-                        className={`font-mono text-[11px] tabular-nums ${
-                          isActive ? 'text-blue-100' : 'text-slate-500'
+                        className={`font-mono text-[11px] tabular-nums px-1.5 py-0.5 rounded ${
+                          isActive
+                            ? 'text-blue-300 bg-slate-900'
+                            : 'text-slate-400 bg-slate-900/60'
                         }`}
                       >
                         {item.count}
@@ -2208,20 +2216,36 @@ export default function App() {
 
           {/* Group 4: Administration */}
           <div className="space-y-1">
-            <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Administration
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Administration &amp; Presentation
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPresentation(true);
+                if (isMobile) setMobileNavOpen(false);
+              }}
+              className="w-full px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between text-blue-300 bg-blue-950/40 border border-blue-800/40 hover:bg-blue-900/40 hover:text-white transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-2.5 truncate">
+                <BarChart3 className="w-4 h-4 shrink-0 text-blue-400" />
+                <span className="truncate">Client Presentation</span>
+              </span>
+              <span className="text-[10px] font-mono text-blue-300 uppercase tracking-wider bg-blue-900/60 px-1.5 py-0.5 rounded">
+                DECK
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => {
                 setShowPilotModal(true);
                 if (isMobile) setMobileNavOpen(false);
               }}
-              className="w-full px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-white/[0.05] hover:text-slate-100 transition-all cursor-pointer"
+              className="w-full px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-colors cursor-pointer"
             >
-              <span className="flex items-center gap-3 truncate">
+              <span className="flex items-center gap-2.5 truncate">
                 <Settings className="w-4 h-4 shrink-0 text-slate-400" />
-                <span className="truncate">Settings</span>
+                <span className="truncate">Settings &amp; Access</span>
               </span>
             </button>
           </div>
@@ -2229,35 +2253,40 @@ export default function App() {
       </div>
 
       {/* Bottom Operator Session */}
-      <div className="p-4 border-t border-slate-800/80 bg-[#070B14]">
-        <div className="flex items-center justify-between gap-2">
+      <div className="p-3.5 border-t border-slate-800/80 bg-[#070B14]">
+        <div className="flex items-center justify-between gap-2.5">
           <button
             type="button"
             onClick={() => {
               setShowPilotModal(true);
               if (isMobile) setMobileNavOpen(false);
             }}
-            title="Manage user accounts & settings"
-            className="min-w-0 text-left hover:opacity-90 transition-opacity cursor-pointer flex-1"
+            title="Manage user accounts & permissions"
+            className="min-w-0 text-left hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2.5 flex-1"
           >
-            <div className="text-xs font-semibold text-white truncate">
-              {activeSessionUser?.name ||
-                adminName ||
-                currentUser?.displayName ||
-                'Skhumbuzo'}
+            <div className="w-8 h-8 rounded-lg bg-blue-600/90 text-white flex items-center justify-center text-xs font-semibold shrink-0 ring-1 ring-white/10">
+              {((activeSessionUser?.name || adminName || 'S').slice(0, 2)).toUpperCase()}
             </div>
-            <div className="text-[11px] text-slate-400 truncate">
-              {activeSessionUser?.title ||
-                adminRoleTitle ||
-                'Operations Administrator'}
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-white truncate">
+                {activeSessionUser?.name ||
+                  adminName ||
+                  currentUser?.displayName ||
+                  'Skhumbuzo'}
+              </div>
+              <div className="text-[11px] text-slate-400 truncate">
+                {activeSessionUser?.title ||
+                  adminRoleTitle ||
+                  'Operations Administrator'}
+              </div>
             </div>
           </button>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={handleResetDemoData}
               title="Reset Operational Shift Data"
-              className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -2265,7 +2294,7 @@ export default function App() {
               type="button"
               onClick={handleLogoutSession}
               title="Sign Out of PrimeChain"
-              className="p-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800/60 text-rose-300 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-md bg-slate-800 hover:bg-rose-950/80 border border-transparent hover:border-rose-800/60 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -2359,21 +2388,17 @@ export default function App() {
         {/* Enterprise Mobile Operator Bar */}
         <header className="bg-[#0F172A] border-b border-slate-800 px-3 sm:px-4 h-14 flex items-center justify-between no-print shrink-0">
           <div className="max-w-lg w-full mx-auto flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded bg-blue-600 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 shadow-sm">
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <span className="text-xs sm:text-sm font-semibold tracking-tight text-white truncate">
                     PrimeChain Field
                   </span>
-                  <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-700/60 text-[10px] font-mono text-emerald-300"
-                    title="Real-Time Desktop & Mobile Sync Active"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>LIVE</span>
+                  <span className="text-[11px] font-mono text-emerald-400 font-medium">
+                    Sync Active
                   </span>
                 </div>
                 {isAdminPreviewingTech ? (
@@ -2394,7 +2419,7 @@ export default function App() {
                     ))}
                   </select>
                 ) : (
-                  <div className="text-[11px] font-mono text-blue-300 truncate max-w-[200px]">
+                  <div className="text-[11px] font-mono text-slate-300 truncate max-w-[200px]">
                     {activeTechObj.employeeCode} · {activeTechObj.name} (
                     {activeTechObj.vehicleReg})
                   </div>
@@ -2406,7 +2431,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowDemoGuide((prev) => !prev)}
-                className={`px-2.5 py-1.5 rounded border text-xs font-medium cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer whitespace-nowrap flex items-center gap-1 transition-colors ${
                   showDemoGuide
                     ? 'bg-blue-600 border-blue-500 text-white'
                     : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
@@ -2420,7 +2445,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleSelectRoleAndUser('admin')}
-                  className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 cursor-pointer whitespace-nowrap"
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 cursor-pointer whitespace-nowrap"
                 >
                   Admin View
                 </button>
@@ -2428,7 +2453,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleLogoutSession}
-                className="px-2.5 py-1.5 rounded bg-rose-950/90 hover:bg-rose-900 border border-rose-800/70 text-xs font-medium text-rose-200 cursor-pointer whitespace-nowrap flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-800/70 text-xs font-medium text-slate-300 hover:text-rose-200 cursor-pointer whitespace-nowrap flex items-center gap-1 transition-colors"
               >
                 <LogOut className="w-3 h-3" />
                 <span>Sign Out</span>
@@ -2505,6 +2530,11 @@ export default function App() {
     <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row bg-[#F8FAFC] text-slate-900">
       <OfflineIndicator />
 
+      <ClientPresentationModal
+        isOpen={showPresentation}
+        onClose={() => setShowPresentation(false)}
+      />
+
       <PilotLaunchModal
         isOpen={showPilotModal}
         onClose={() => setShowPilotModal(false)}
@@ -2565,13 +2595,13 @@ export default function App() {
          ===================================================================== */}
       <div className="flex-1 flex flex-col min-w-0 lg:overflow-hidden">
         {/* Top Bar Contract: Strict 1-row, 3-zone header */}
-        <header className="bg-white border-b border-slate-200/80 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 no-print">
+        <header className="bg-white border-b border-slate-200/90 h-14 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 no-print">
           {/* Zone 1: Mobile Menu Trigger + Breadcrumb Trail */}
           <div className="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
-              className="lg:hidden p-2 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+              className="lg:hidden p-1.5 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
               aria-label="Open navigation menu"
             >
               <Menu className="w-5 h-5" />
@@ -2598,7 +2628,7 @@ export default function App() {
                 onClick={() => handleNavigate(item.id)}
                 className={`py-1 whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                   activeModule === item.id
-                    ? 'text-blue-600 font-semibold underline'
+                    ? 'text-blue-600 font-semibold'
                     : 'hover:text-slate-900'
                 }`}
               >
@@ -2607,12 +2637,20 @@ export default function App() {
             ))}
           </nav>
 
-          {/* Zone 3: Walkthrough Guide & Settings Action */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Zone 3: Executive Deck, Walkthrough Guide & Settings */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPresentation(true)}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
+              <span>Client Presentation</span>
+            </button>
             <button
               type="button"
               onClick={() => setShowDemoGuide((prev) => !prev)}
-              className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs border ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 border ${
                 showDemoGuide
                   ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold'
                   : 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200'
@@ -2628,7 +2666,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setShowPilotModal(true)}
-              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5"
             >
               <Settings className="w-3.5 h-3.5 text-slate-500" />
               <span>Settings</span>
@@ -2637,7 +2675,7 @@ export default function App() {
               type="button"
               onClick={handleLogoutSession}
               title={`Sign out (${activeSessionUser.name})`}
-              className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sign Out</span>

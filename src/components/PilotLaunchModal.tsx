@@ -264,10 +264,10 @@ export const PilotLaunchModal: React.FC<PilotLaunchModalProps> = ({
               <span className="font-semibold text-slate-900">
                 {activeSessionUser.name}
               </span>
-              <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-[11px] font-mono text-blue-700">
-                {activeSessionUser.role === 'admin'
-                  ? 'ADMIN DESKTOP'
-                  : 'FIELD TECH'}
+              <span className="font-mono text-slate-600 text-xs">
+                ({activeSessionUser.role === 'admin'
+                  ? 'Admin Desktop'
+                  : 'Field Technician'})
               </span>
             </div>
           )}
@@ -477,34 +477,31 @@ export const PilotLaunchModal: React.FC<PilotLaunchModalProps> = ({
                             )}
                           </div>
                           <div className="min-w-0 space-y-0.5">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500">
                               <span className="text-sm font-semibold text-slate-900">
                                 {u.name}
                               </span>
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase ${
-                                  u.role === 'admin'
-                                    ? 'bg-slate-100 text-slate-800 border border-slate-300'
-                                    : 'bg-blue-50 text-blue-700 border border-blue-200'
-                                }`}
-                              >
-                                {u.role === 'admin'
-                                  ? 'ADMIN DESKTOP'
-                                  : 'FIELD TECH'}
+                              <span aria-hidden="true">·</span>
+                              <span className="font-mono text-slate-700">
+                                {u.role === 'admin' ? 'Admin Desktop' : 'Field Technician'}
                               </span>
+                              <span aria-hidden="true">·</span>
                               <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase ${
+                                className={`font-medium ${
                                   u.status === 'Active'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    ? 'text-emerald-700'
+                                    : 'text-rose-600'
                                 }`}
                               >
                                 {u.status}
                               </span>
                               {isCurrentSession && (
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-900 text-white">
-                                  YOU
-                                </span>
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="font-semibold text-blue-600">
+                                    Current Session
+                                  </span>
+                                </>
                               )}
                             </div>
                             <div className="text-xs text-slate-500">
@@ -617,7 +614,7 @@ export const PilotLaunchModal: React.FC<PilotLaunchModalProps> = ({
                   <div className="space-y-1.5 text-xs">
                     <div className="font-mono text-[11px] font-semibold text-blue-700 flex items-center gap-1">
                       <QrCode className="w-3.5 h-3.5" />
-                      <span>ANDROID FIELD HANDHELD</span>
+                      <span>Android Field Handheld</span>
                     </div>
                     <p className="text-slate-600 leading-relaxed">
                       Scan with any mobile phone to open{' '}

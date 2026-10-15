@@ -945,17 +945,14 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                 {/* Mobile Status & Brand Bar */}
                 <div className="flex items-center justify-between text-xs text-[#94A3B8] pb-3 border-b border-[#2E3440] shrink-0">
                   <div className="flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-[#60A5FA]" />
+                    <Shield className="w-3.5 h-3.5 text-blue-400" />
                     <span className="font-semibold text-white tracking-tight">
-                      PrimeChain
-                    </span>
-                    <span className="font-mono text-[10px] text-[#60A5FA] bg-[#1E3A8A]/50 px-1.5 py-0.5 rounded">
-                      FIELD
+                      PrimeChain Field
                     </span>
                   </div>
                   <div className="flex items-center gap-2 font-mono text-[11px]">
-                    <span className="text-[#CBD5E1]">{activeTech.employeeCode}</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" title="Synced" />
+                    <span className="text-slate-300">{activeTech.employeeCode}</span>
+                    <span className="text-emerald-400 font-medium">Online</span>
                   </div>
                 </div>
 
@@ -1027,8 +1024,8 @@ export const FieldCaptureView: React.FC<FieldCaptureViewProps> = ({
                               All Active ({allActiveWOs.length})
                             </button>
                           </div>
-                          <span className="text-[10px] font-mono tracking-wider text-[#94A3B8] uppercase">
-                            TAP TO START
+                          <span className="text-[11px] text-slate-400">
+                            Select to start
                           </span>
                         </div>
 

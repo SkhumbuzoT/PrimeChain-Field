@@ -3,17 +3,18 @@ import {
   Search,
   ArrowRight,
   AlertTriangle,
-  FileCheck,
+  FileCheck2,
   Package,
   Truck,
-  Wrench,
-  ClipboardCheck,
-  Clock,
-  ShieldAlert,
-  Send,
-  Plus,
+  Users,
   CheckCircle2,
   X,
+  Clock,
+  ShieldAlert,
+  ChevronRight,
+  Sun,
+  MoreVertical,
+  Check,
 } from 'lucide-react';
 import {
   MeterDevice,
@@ -42,22 +43,18 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
   jobCards,
   onNavigate,
   onSelectJobCard,
-  operatorName = 'Skhumbuzo',
+  operatorName = 'Sipho',
   operatorRoleTitle = 'Operations Administrator',
   onOpenProfileSettings,
 }) => {
   const [traceQuery, setTraceQuery] = useState('');
-  const [selectedTraceSerial, setSelectedTraceSerial] = useState<string | null>(
-    null
-  );
+  const [selectedTraceSerial, setSelectedTraceSerial] = useState<string | null>(null);
 
   // Stock lifecycle buckets
   const availableStock = devices.filter((d) => d.status === 'Available');
   const allocatedStock = devices.filter((d) => d.status === 'Allocated');
   const installedStock = devices.filter((d) => d.status === 'Installed');
-  const investigationStock = devices.filter(
-    (d) => d.status === 'Investigation'
-  );
+  const investigationStock = devices.filter((d) => d.status === 'Investigation');
 
   // Work order lifecycle buckets
   const receivedWOs = workOrders.filter((w) => w.status === 'Received');
@@ -66,14 +63,10 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
     (w) => w.status === 'Completed' || w.status === 'Submitted'
   );
   const exceptionWOs = workOrders.filter((w) => w.status === 'Exception');
-  const activeWorkOrdersCount = receivedWOs.length + assignedWOs.length;
-  const totalExceptionsCount =
-    investigationStock.length + exceptionWOs.length;
+  const totalExceptionsCount = investigationStock.length + exceptionWOs.length;
 
   // Job card buckets
-  const readyJobCards = jobCards.filter(
-    (jc) => jc.reviewStatus === 'Ready for Review'
-  );
+  const readyJobCards = jobCards.filter((jc) => jc.reviewStatus === 'Ready for Review');
   const submittedJobCards = jobCards.filter(
     (jc) => jc.reviewStatus === 'Submitted to Municipality'
   );
@@ -123,9 +116,7 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
   const tracedJobCard = tracedDevice
     ? jobCards.find((jc) => jc.newDeviceSerial === tracedDevice.serialNumber)
     : tracedWorkOrder
-    ? jobCards.find(
-        (jc) => jc.workOrderNumber === tracedWorkOrder.workOrderNumber
-      )
+    ? jobCards.find((jc) => jc.workOrderNumber === tracedWorkOrder.workOrderNumber)
     : undefined;
 
   const handleQuickTrace = (serial: string) => {
@@ -133,118 +124,125 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
     setSelectedTraceSerial(serial);
   };
 
+  // Format today's date
+  const todayFormatted = new Date().toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
   return (
     <div className="space-y-6 saas-page-transition">
       {/* =====================================================================
-          OBJECTIVE 3 — SAAS HOME SCREEN HEADER & GLOBAL TRACEABILITY BAR
+          1. PAGE HEADER & OPERATIONAL CONTEXT (Matching Showcase Design)
          ===================================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <span>City Power Johannesburg</span>
-              <span aria-hidden="true">·</span>
-              <span className="font-mono text-slate-600">SDC Randburg</span>
-              <span aria-hidden="true">·</span>
-              <span className="text-emerald-700 font-semibold">
-                Operations Active
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
-                Good afternoon, {operatorName}
-              </h1>
-              {onOpenProfileSettings && (
-                <button
-                  type="button"
-                  onClick={onOpenProfileSettings}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 border border-slate-200/80 transition-colors cursor-pointer"
-                  title="Switch user profile or customize your name"
-                >
-                  {operatorRoleTitle} · Switch Profile
-                </button>
-              )}
-            </div>
-            <p className="text-sm text-slate-500">
-              Here&apos;s what&apos;s happening across your operation.
-            </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 font-mono">
+            Control Tower
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#172B3A] tracking-tight">
+            Good afternoon, {operatorName}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Here&apos;s what&apos;s happening across your field operations.
+          </p>
+        </div>
+
+        {/* Date, Weather & Profile Switcher */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-xs text-xs text-slate-600">
+            <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="font-medium text-[#172B3A]">{todayFormatted}</span>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span>18°C Johannesburg</span>
           </div>
 
-          {/* Global Serial / Work Order Trace Lookup */}
-          <div className="w-full lg:w-[460px] flex flex-col gap-2">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={traceQuery}
-                onChange={(e) => {
-                  setTraceQuery(e.target.value);
+          {onOpenProfileSettings && (
+            <button
+              type="button"
+              onClick={onOpenProfileSettings}
+              className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 shadow-xs cursor-pointer transition-colors"
+              title="Switch user account or edit settings"
+            >
+              Profile
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          2. TRACEABILITY & METER SEARCH BAR (Persistent & High-Utility)
+         ===================================================================== */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={traceQuery}
+              onChange={(e) => {
+                setTraceQuery(e.target.value);
+                setSelectedTraceSerial(null);
+              }}
+              placeholder="Search work orders, meter serials, or device IDs..."
+              className="w-full pl-10 pr-16 py-2 text-xs font-mono bg-[#F8FAFC] border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3569D4] focus:bg-white focus:ring-1 focus:ring-[#3569D4]/20 transition-all"
+            />
+            {(traceQuery || selectedTraceSerial) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTraceQuery('');
                   setSelectedTraceSerial(null);
                 }}
-                placeholder="Trace meter serial #, work order, or account..."
-                className="w-full pl-10 pr-16 py-2.5 text-xs font-mono bg-slate-50/80 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/10 transition-all"
-              />
-              {(traceQuery || selectedTraceSerial) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTraceQuery('');
-                    setSelectedTraceSerial(null);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 hover:text-slate-700 cursor-pointer flex items-center gap-1"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Clear</span>
-                </button>
-              )}
-            </div>
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 hover:text-slate-700 cursor-pointer flex items-center gap-1"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Clear</span>
+              </button>
+            )}
+          </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap px-0.5">
-              <span className="text-slate-400">Quick trace:</span>
-              <button
-                type="button"
-                onClick={() => handleQuickTrace('14521344573')}
-                className="font-mono text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
-              >
-                #14521344573
-              </button>
-              <span aria-hidden="true" className="text-slate-300">
-                ·
-              </span>
-              <button
-                type="button"
-                onClick={() => handleQuickTrace('987654')}
-                className="font-mono text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
-              >
-                #987654
-              </button>
-              <span aria-hidden="true" className="text-slate-300">
-                ·
-              </span>
-              <button
-                type="button"
-                onClick={() => handleQuickTrace('MET-88421')}
-                className="font-mono text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
-              >
-                MET-88421
-              </button>
-              <span aria-hidden="true" className="text-slate-300">
-                ·
-              </span>
-              <button
-                type="button"
-                onClick={() => handleQuickTrace('987619')}
-                className="font-mono text-rose-600 hover:text-rose-800 font-medium transition-colors cursor-pointer"
-              >
-                #987619 (Audit)
-              </button>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap px-1">
+            <span className="text-slate-400">Quick trace:</span>
+            <button
+              type="button"
+              onClick={() => handleQuickTrace('987654')}
+              className="font-mono text-slate-700 hover:text-[#3569D4] font-medium transition-colors cursor-pointer"
+            >
+              #987654
+            </button>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <button
+              type="button"
+              onClick={() => handleQuickTrace('14521344573')}
+              className="font-mono text-slate-700 hover:text-[#3569D4] font-medium transition-colors cursor-pointer"
+            >
+              #14521344573
+            </button>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <button
+              type="button"
+              onClick={() => handleQuickTrace('MET-88421')}
+              className="font-mono text-slate-700 hover:text-[#3569D4] font-medium transition-colors cursor-pointer"
+            >
+              MET-88421
+            </button>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <button
+              type="button"
+              onClick={() => handleQuickTrace('987619')}
+              className="font-mono text-rose-600 hover:text-rose-800 font-semibold transition-colors cursor-pointer"
+            >
+              #987619 (Audit)
+            </button>
           </div>
         </div>
 
-        {/* Expanded Custody Trace Dossier when a Serial or Work Order is Queried */}
+        {/* Chain-of-Custody Trace Dossier Drawer (When a serial is queried) */}
         {tracedDevice && (
-          <div className="mt-6 pt-5 border-t border-slate-100 space-y-4">
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
@@ -254,25 +252,22 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                   <span aria-hidden="true">·</span>
                   <span>Seal {tracedDevice.sealNumber}</span>
                 </div>
-                <div className="flex items-baseline gap-3 flex-wrap mt-1">
-                  <h2 className="text-lg font-semibold font-mono text-slate-900">
+                <div className="flex items-baseline gap-3 flex-wrap mt-0.5">
+                  <h2 className="text-lg font-bold font-mono text-[#172B3A]">
                     Meter #{tracedDevice.serialNumber}
                   </h2>
                   <span className="text-xs text-slate-500">
-                    {tracedDevice.manufacturer} {tracedDevice.model} ·{' '}
-                    {tracedDevice.deviceType}
+                    {tracedDevice.manufacturer} {tracedDevice.model} · {tracedDevice.deviceType}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 {tracedDevice.status === 'Allocated' && (
                   <button
                     type="button"
-                    onClick={() =>
-                      onNavigate('field-capture', tracedDevice.serialNumber)
-                    }
-                    className="px-3.5 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs"
+                    onClick={() => onNavigate('field-capture', tracedDevice.serialNumber)}
+                    className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#3569D4] rounded-lg hover:bg-[#2B57B8] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <span>Execute in Field App</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -282,7 +277,7 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onSelectJobCard(tracedJobCard.jobCardId)}
-                    className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs"
+                    className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#172B3A] rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <span>Open Commissioning Sheet</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -291,12 +286,10 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-              <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-lg">
-                <div className="text-xs font-semibold text-emerald-700">
-                  01. Depot Intake
-                </div>
-                <div className="text-sm font-semibold text-slate-900 mt-1">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="text-[11px] font-semibold text-emerald-700">Depot Intake</div>
+                <div className="text-sm font-semibold text-slate-900 mt-0.5">
                   Received {tracedDevice.dateReceived}
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">
@@ -304,39 +297,29 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-lg">
-                <div
-                  className={`text-xs font-semibold ${
-                    tracedDevice.assignedTechnicianName
-                      ? 'text-blue-700'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  02. Crew Allocation
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className={`text-[11px] font-semibold ${tracedDevice.assignedTechnicianName ? 'text-[#3569D4]' : 'text-slate-400'}`}>
+                  Vehicle Allocation
                 </div>
-                <div className="text-sm font-semibold text-slate-900 mt-1">
+                <div className="text-sm font-semibold text-slate-900 mt-0.5">
                   {tracedDevice.assignedTechnicianName || 'Unallocated in Store'}
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">
-                  {tracedDevice.dateIssued
-                    ? `Issued ${tracedDevice.dateIssued}`
-                    : 'Awaiting vehicle sign-out'}
+                  {tracedDevice.dateIssued ? `Issued ${tracedDevice.dateIssued}` : 'Awaiting vehicle sign-out'}
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-lg">
-                <div
-                  className={`text-xs font-semibold ${
-                    tracedDevice.status === 'Installed'
-                      ? 'text-emerald-700'
-                      : tracedDevice.status === 'Investigation'
-                      ? 'text-rose-700'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  03. Site Execution
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className={`text-[11px] font-semibold ${
+                  tracedDevice.status === 'Installed'
+                    ? 'text-emerald-700'
+                    : tracedDevice.status === 'Investigation'
+                    ? 'text-rose-700'
+                    : 'text-slate-500'
+                }`}>
+                  Field Installation
                 </div>
-                <div className="text-sm font-semibold text-slate-900 mt-1">
+                <div className="text-sm font-semibold text-slate-900 mt-0.5">
                   {tracedDevice.installedWorkOrderNumber
                     ? `WO: ${tracedDevice.installedWorkOrderNumber}`
                     : tracedWorkOrder
@@ -350,23 +333,15 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-lg">
-                <div
-                  className={`text-xs font-semibold ${
-                    tracedJobCard ? 'text-emerald-700' : 'text-slate-400'
-                  }`}
-                >
-                  04. Commissioning Sheet
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className={`text-[11px] font-semibold ${tracedJobCard ? 'text-emerald-700' : 'text-slate-400'}`}>
+                  Commissioning Sheet
                 </div>
-                <div className="text-sm font-semibold text-slate-900 mt-1">
-                  {tracedJobCard
-                    ? `${tracedJobCard.jobCardId} (${tracedJobCard.reviewStatus})`
-                    : 'Pending Installation'}
+                <div className="text-sm font-semibold text-slate-900 mt-0.5">
+                  {tracedJobCard ? `${tracedJobCard.jobCardId}` : 'Pending Installation'}
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5 font-mono">
-                  {tracedJobCard
-                    ? `Old #${tracedJobCard.oldDeviceSerial} → New #${tracedJobCard.newDeviceSerial}`
-                    : 'Auto-generated on capture'}
+                  {tracedJobCard ? `Review: ${tracedJobCard.reviewStatus}` : 'Auto-generated on capture'}
                 </div>
               </div>
             </div>
@@ -375,29 +350,36 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
       </div>
 
       {/* =====================================================================
-          OBJECTIVE 3 — PREMIUM SAAS KPI CARDS
-          Large primary number · Short descriptive label · Small supporting info
+          3. 5 KPI CARDS IN A ROW (Matching Showcase Design)
          ===================================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Devices */}
         <button
           type="button"
           onClick={() => onNavigate('stock-control')}
-          className="bg-white border border-slate-200/80 rounded-xl p-5 text-left hover:border-slate-300 transition-all shadow-[0_1px_2px_rgba(15,23,42,0.04)] cursor-pointer flex flex-col justify-between group"
+          className="bg-white border border-slate-200/90 rounded-xl p-4 text-left hover:border-slate-300 transition-all shadow-xs cursor-pointer flex flex-col justify-between group"
         >
-          <div>
-            <div className="text-3xl font-semibold tracking-tight font-mono tabular-nums text-slate-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 group-hover:text-[#3569D4] transition-colors">
+                Devices
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+              ↑ 12%
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-[#172B3A] tracking-tight tabular-nums">
               {devices.length.toLocaleString()}
             </div>
-            <div className="text-sm font-medium text-slate-700 mt-1 group-hover:text-blue-600 transition-colors">
-              Devices
+            <div className="text-xs text-slate-500 mt-1 font-mono">
+              {installedStock.length} in service · {availableStock.length} in stock
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
-            <span>{availableStock.length} in store</span>
-            <span className="text-blue-600 font-medium">
-              {allocatedStock.length} in vehicles
-            </span>
           </div>
         </button>
 
@@ -405,21 +387,29 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigate('work-orders')}
-          className="bg-white border border-slate-200/80 rounded-xl p-5 text-left hover:border-slate-300 transition-all shadow-[0_1px_2px_rgba(15,23,42,0.04)] cursor-pointer flex flex-col justify-between group"
+          className="bg-white border border-slate-200/90 rounded-xl p-4 text-left hover:border-slate-300 transition-all shadow-xs cursor-pointer flex flex-col justify-between group"
         >
-          <div>
-            <div className="text-3xl font-semibold tracking-tight font-mono tabular-nums text-slate-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0">
+                <FileCheck2 className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 group-hover:text-[#3569D4] transition-colors">
+                Active Work Orders
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+              ↑ 8%
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-[#172B3A] tracking-tight tabular-nums">
               {workOrders.length.toLocaleString()}
             </div>
-            <div className="text-sm font-medium text-slate-700 mt-1 group-hover:text-blue-600 transition-colors">
-              Active Work Orders
+            <div className="text-xs text-slate-500 mt-1 font-mono">
+              {assignedWOs.length} dispatched · {receivedWOs.length} pending
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
-            <span className="text-blue-600 font-medium">
-              {assignedWOs.length} dispatched
-            </span>
-            <span>{completedWOs.length} completed</span>
           </div>
         </button>
 
@@ -427,21 +417,29 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigate('tech-allocation')}
-          className="bg-white border border-slate-200/80 rounded-xl p-5 text-left hover:border-slate-300 transition-all shadow-[0_1px_2px_rgba(15,23,42,0.04)] cursor-pointer flex flex-col justify-between group"
+          className="bg-white border border-slate-200/90 rounded-xl p-4 text-left hover:border-slate-300 transition-all shadow-xs cursor-pointer flex flex-col justify-between group"
         >
-          <div>
-            <div className="text-3xl font-semibold tracking-tight font-mono tabular-nums text-slate-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 group-hover:text-[#3569D4] transition-colors">
+                Technicians
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+              ↑ 6%
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-[#172B3A] tracking-tight tabular-nums">
               {technicians.length.toLocaleString()}
             </div>
-            <div className="text-sm font-medium text-slate-700 mt-1 group-hover:text-blue-600 transition-colors">
-              Technicians
+            <div className="text-xs text-slate-500 mt-1 font-mono">
+              {technicians.length} on duty · 0 off duty
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
-            <span className="text-emerald-700 font-medium">
-              Custody lock active
-            </span>
-            <span>{allocatedStock.length} units held</span>
           </div>
         </button>
 
@@ -449,27 +447,29 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigate('work-orders')}
-          className="bg-white border border-slate-200/80 rounded-xl p-5 text-left hover:border-slate-300 transition-all shadow-[0_1px_2px_rgba(15,23,42,0.04)] cursor-pointer flex flex-col justify-between group"
+          className="bg-white border border-slate-200/90 rounded-xl p-4 text-left hover:border-slate-300 transition-all shadow-xs cursor-pointer flex flex-col justify-between group"
         >
-          <div>
-            <div
-              className={`text-3xl font-semibold tracking-tight font-mono tabular-nums ${
-                totalExceptionsCount > 0 ? 'text-rose-600' : 'text-slate-900'
-              }`}
-            >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 group-hover:text-rose-600 transition-colors">
+                Exceptions
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold font-mono text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">
+              ↑ 3%
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-rose-600 tracking-tight tabular-nums">
               {totalExceptionsCount.toLocaleString()}
             </div>
-            <div className="text-sm font-medium text-slate-700 mt-1 group-hover:text-rose-600 transition-colors">
-              Exceptions
+            <div className="text-xs text-slate-500 mt-1 font-mono">
+              {investigationStock.length} overdue · {exceptionWOs.length} site blocked
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
-            <span className="text-rose-600 font-medium">
-              {investigationStock.length} audit overdue
-            </span>
-            <span className="text-amber-700">
-              {exceptionWOs.length} site blocked
-            </span>
           </div>
         </button>
 
@@ -477,112 +477,148 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigate('job-cards')}
-          className="bg-white border border-slate-200/80 rounded-xl p-5 text-left hover:border-slate-300 transition-all shadow-[0_1px_2px_rgba(15,23,42,0.04)] cursor-pointer flex flex-col justify-between group"
+          className="bg-white border border-slate-200/90 rounded-xl p-4 text-left hover:border-slate-300 transition-all shadow-xs cursor-pointer flex flex-col justify-between group"
         >
-          <div>
-            <div className="text-3xl font-semibold tracking-tight font-mono tabular-nums text-slate-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0">
+                <FileCheck2 className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 group-hover:text-[#3569D4] transition-colors">
+                Commissioning Sheets
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+              ↑ 19%
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-[#172B3A] tracking-tight tabular-nums">
               {jobCards.length.toLocaleString()}
             </div>
-            <div className="text-sm font-medium text-slate-700 mt-1 group-hover:text-blue-600 transition-colors">
-              Commissioning Sheets
+            <div className="text-xs text-slate-500 mt-1 font-mono">
+              {readyJobCards.length} ready · {submittedJobCards.length} submitted
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-mono">
-            <span className="text-blue-600 font-medium">
-              {readyJobCards.length} ready
-            </span>
-            <span className="text-emerald-700 font-medium">
-              {submittedJobCards.length} submitted
-            </span>
           </div>
         </button>
       </div>
 
       {/* =====================================================================
-          ASSET CUSTODY RECONCILIATION BAR
+          4. METER CUSTODY & ASSET RECONCILIATION BAR (Matching Showcase Design)
          ===================================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-xl px-6 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-5 flex-wrap text-xs">
-          <span className="font-semibold text-slate-900">
-            Asset Reconciliation ({devices.length} Meters)
-          </span>
-          <span className="font-mono text-emerald-700 font-medium">
-            Installed: {installedStock.length} ({pctInstalled}%)
-          </span>
-          <span className="text-slate-300" aria-hidden="true">
-            ·
-          </span>
-          <span className="font-mono text-blue-600 font-medium">
-            Vehicle Custody: {allocatedStock.length} ({pctAllocated}%)
-          </span>
-          <span className="text-slate-300" aria-hidden="true">
-            ·
-          </span>
-          <span className="font-mono text-slate-600">
-            Central Store: {availableStock.length} ({pctAvailable}%)
-          </span>
-          <span className="text-slate-300" aria-hidden="true">
-            ·
-          </span>
-          <span className="font-mono text-rose-600 font-semibold">
-            Investigation: {investigationStock.length}
-          </span>
+      <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-[#172B3A]">
+              Meter Custody &amp; Asset Reconciliation
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Live inventory and custody status across all meters
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('stock-control')}
+            className="text-xs font-semibold text-[#3569D4] hover:text-[#2B57B8] flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <span>View details</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        <div className="w-full lg:w-72 h-2 bg-slate-100 rounded-full overflow-hidden flex shrink-0">
+        {/* Multi-Segmented Progress Bar */}
+        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
           <div
             style={{ width: `${pctInstalled}%` }}
             className="bg-emerald-500 h-full transition-all duration-300"
+            title={`Installed: ${pctInstalled}%`}
           />
           <div
             style={{ width: `${pctAllocated}%` }}
-            className="bg-blue-600 h-full transition-all duration-300"
+            className="bg-[#3569D4] h-full transition-all duration-300"
+            title={`Vehicle Custody: ${pctAllocated}%`}
           />
           <div
             style={{ width: `${pctAvailable}%` }}
             className="bg-slate-300 h-full transition-all duration-300"
+            title={`Central Store: ${pctAvailable}%`}
           />
           <div
             style={{ width: `${pctInvestigation}%` }}
-            className="bg-rose-500 h-full transition-all duration-300"
+            className="bg-amber-500 h-full transition-all duration-300"
+            title={`Investigation: ${pctInvestigation}%`}
           />
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 sm:gap-8 flex-wrap text-xs font-medium">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-slate-600">Installed</span>
+            <span className="font-mono text-[#172B3A] font-semibold">{installedStock.length} ({pctInstalled}%)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#3569D4] shrink-0" />
+            <span className="text-slate-600">Vehicle Custody</span>
+            <span className="font-mono text-[#172B3A] font-semibold">{allocatedStock.length} ({pctAllocated}%)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
+            <span className="text-slate-600">Central Store</span>
+            <span className="font-mono text-[#172B3A] font-semibold">{availableStock.length} ({pctAvailable}%)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+            <span className="text-slate-600">Investigation</span>
+            <span className="font-mono text-amber-700 font-semibold">{investigationStock.length} ({pctInvestigation}%)</span>
+          </div>
         </div>
       </div>
 
       {/* =====================================================================
-          OBJECTIVE 4 & 6 — 2-COLUMN SPLIT: CREW DISPATCH MATRIX & ESCALATION QUEUE
+          5. 3-COLUMN LOWER SECTION (Matching Showcase Design)
+             Column 1 (6 cols): Field Crew & Dispatch Table
+             Column 2 (3 cols): Recent Activity Feed
+             Column 3 (3 cols): Action Queue
          ===================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left (7 cols): Field Crew Custody & Shift Execution Table */}
-        <section className="lg:col-span-7 bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col justify-between overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (6 cols): Field Crew & Dispatch */}
+        <section className="lg:col-span-6 bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden flex flex-col justify-between">
           <div>
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Field Crew Custody & Dispatch Matrix
-                </h2>
+                <h3 className="text-sm font-bold text-[#172B3A]">
+                  Field Crew &amp; Dispatch
+                </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Live vehicle stock custody and active work order assignments
+                  Technician workload, vehicle allocation and active assignments
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => onNavigate('tech-allocation')}
-                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="text-xs font-semibold text-[#3569D4] hover:text-[#2B57B8] flex items-center gap-1 cursor-pointer"
               >
-                <span>Manage Allocations</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                <span>View all</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                    <th className="py-3 px-5">Technician & Vehicle</th>
-                    <th className="py-3 px-5">Meters in Custody</th>
-                    <th className="py-3 px-5 text-right">Workload</th>
-                    <th className="py-3 px-5 text-right">Action</th>
+                  <tr className="border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-50/70">
+                    <th className="py-2.5 px-4">Technician</th>
+                    <th className="py-2.5 px-3">Vehicle</th>
+                    <th className="py-2.5 px-3">Depot</th>
+                    <th className="py-2.5 px-3 text-center">Workload</th>
+                    <th className="py-2.5 px-3 text-center">Active</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -590,99 +626,76 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                     const heldDevices = devices.filter(
                       (d) =>
                         d.assignedTechnicianId === tech.id &&
-                        (d.status === 'Allocated' ||
-                          d.status === 'Investigation')
+                        (d.status === 'Allocated' || d.status === 'Investigation')
                     );
                     const techAssigned = workOrders.filter(
                       (w) => w.assignedTechnicianId === tech.id
                     );
-                    const techOpen = techAssigned.filter(
-                      (w) => w.status === 'Assigned'
-                    );
-                    const techDone = techAssigned.filter(
-                      (w) =>
-                        w.status === 'Completed' || w.status === 'Submitted'
-                    );
+                    const techOpen = techAssigned.filter((w) => w.status === 'Assigned');
+                    const initials = tech.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .slice(0, 2);
 
                     return (
-                      <tr
-                        key={tech.id}
-                        className="hover:bg-slate-50/80 transition-colors"
-                      >
-                        <td className="py-3.5 px-5 align-top">
-                          <div className="font-semibold text-slate-900 text-sm">
-                            {tech.name}
-                          </div>
-                          <div className="text-xs font-mono text-slate-500 mt-0.5">
-                            {tech.employeeCode} · {tech.vehicleReg} ·{' '}
-                            {tech.region.split('·')[1]?.trim() || tech.region}
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-5 align-top">
-                          {heldDevices.length > 0 ? (
-                            <div className="flex items-center gap-1.5 flex-wrap font-mono text-xs">
-                              {heldDevices.map((d, idx) => (
-                                <React.Fragment key={d.serialNumber}>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleQuickTrace(d.serialNumber)
-                                    }
-                                    className={`underline cursor-pointer transition-colors ${
-                                      d.status === 'Investigation'
-                                        ? 'text-rose-600 font-semibold'
-                                        : 'text-slate-700 hover:text-blue-600'
-                                    }`}
-                                  >
-                                    #{d.serialNumber}
-                                  </button>
-                                  {idx < heldDevices.length - 1 && (
-                                    <span className="text-slate-300">·</span>
-                                  )}
-                                </React.Fragment>
-                              ))}
+                      <tr key={tech.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-[#172B3A] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                              {initials}
                             </div>
-                          ) : (
-                            <span className="text-xs font-mono text-slate-400">
-                              0 units held
-                            </span>
-                          )}
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[#172B3A] truncate">
+                                {tech.name}
+                              </div>
+                              <div className="text-[11px] font-mono text-slate-400 truncate">
+                                {tech.employeeCode} · {tech.vehicleReg}
+                              </div>
+                            </div>
+                          </div>
                         </td>
 
-                        <td className="py-3.5 px-5 align-top text-right font-mono tabular-nums whitespace-nowrap">
-                          <span className="text-blue-600 font-semibold">
-                            {techOpen.length} ACTIVE
-                          </span>
-                          <span className="text-slate-300 mx-1.5">/</span>
-                          <span className="text-emerald-700 font-medium">
-                            {techDone.length} DONE
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+                          #{tech.vehicleReg.replace(/\s+/g, '')}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-slate-600 text-[11px]">
+                          {tech.region.split('·')[1]?.trim() || tech.region}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-[#3569D4]">
+                          {heldDevices.length}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-600 text-[11px]">
+                          {techOpen.length} / 6
+                        </td>
+
+                        <td className="py-2.5 px-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            On duty
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-5 align-top text-right whitespace-nowrap">
-                          {techOpen.length > 0 ? (
+                        <td className="py-2.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
-                              onClick={() =>
-                                onNavigate(
-                                  'field-capture',
-                                  techOpen[0].workOrderNumber
-                                )
-                              }
-                              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                              onClick={() => onNavigate('field-capture', techOpen[0]?.workOrderNumber)}
+                              className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                             >
-                              Open Terminal
+                              View
                             </button>
-                          ) : (
                             <button
                               type="button"
                               onClick={() => onNavigate('tech-allocation')}
-                              className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                              title="Allocation options"
                             >
-                              Allocate →
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -691,205 +704,243 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
               </table>
             </div>
           </div>
+        </section>
 
-          <div className="px-6 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Custody Policy: Strict Vehicle Serial Verification</span>
-            <span className="font-mono text-emerald-700 font-semibold">
-              100% ENFORCED
-            </span>
+        {/* Middle Column (3 cols): Recent Activity Feed */}
+        <section className="lg:col-span-3 bg-white border border-slate-200/90 rounded-xl shadow-xs p-4 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-[#172B3A]">
+              Recent Activity
+            </h3>
+            <button
+              type="button"
+              onClick={() => onNavigate('work-orders')}
+              className="text-xs font-semibold text-[#3569D4] hover:text-[#2B57B8] flex items-center gap-1 cursor-pointer"
+            >
+              <span>All activity</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="space-y-3.5">
+            {/* Event 1: Work Order completed */}
+            <div className="flex items-start gap-2.5 text-xs">
+              <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="text-slate-900 font-medium leading-tight">
+                  Work order <span className="text-[#3569D4] font-semibold">#987619</span> completed
+                </div>
+                <div className="text-[11px] text-slate-500">Meter installed and commissioned</div>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">2h ago</span>
+            </div>
+
+            {/* Event 2: New exception raised */}
+            <div className="flex items-start gap-2.5 text-xs">
+              <div className="w-6 h-6 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="text-slate-900 font-medium leading-tight">
+                  New exception raised
+                </div>
+                <div className="text-[11px] text-slate-500">Site blocked · Access issue</div>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">3h ago</span>
+            </div>
+
+            {/* Event 3: Meter allocated */}
+            <div className="flex items-start gap-2.5 text-xs">
+              <div className="w-6 h-6 rounded-full bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0 mt-0.5">
+                <Package className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="text-slate-900 font-medium leading-tight">
+                  Meter <span className="text-[#3569D4] font-semibold">#987654</span> allocated
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">To Thabo Mokoena (Vehicle KT 19 GP)</div>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">4h ago</span>
+            </div>
+
+            {/* Event 4: Work Order dispatched */}
+            <div className="flex items-start gap-2.5 text-xs">
+              <div className="w-6 h-6 rounded-full bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0 mt-0.5">
+                <Truck className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="text-slate-900 font-medium leading-tight">
+                  Work order <span className="text-[#3569D4] font-semibold">#987658</span> dispatched
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">To Lerato Dlamini (Vehicle LM 82 GP)</div>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">5h ago</span>
+            </div>
+
+            {/* Event 5: Commissioning pack ready */}
+            <div className="flex items-start gap-2.5 text-xs">
+              <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="text-slate-900 font-medium leading-tight">
+                  Commissioning pack ready
+                </div>
+                <div className="text-[11px] font-mono text-slate-500">WO-2026-8846</div>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">6h ago</span>
+            </div>
           </div>
         </section>
 
-        {/* Right (5 cols): Active Operational Exceptions & Action Queue */}
-        <section className="lg:col-span-5 bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col justify-between overflow-hidden">
-          <div>
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Exception & Action Queue
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Items requiring supervisor attention or municipal sign-off
-                </p>
-              </div>
-              <span className="text-xs font-mono font-semibold text-rose-600">
-                {investigationStock.length +
-                  exceptionWOs.length +
-                  receivedWOs.length}{' '}
-                OPEN
+        {/* Right Column (3 cols): Action Queue */}
+        <section className="lg:col-span-3 bg-white border border-slate-200/90 rounded-xl shadow-xs p-4 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-[#172B3A]">
+                Action Queue
+              </h3>
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold font-mono">
+                {investigationStock.length + exceptionWOs.length + receivedWOs.length + readyJobCards.length}
               </span>
             </div>
-
-            <div className="divide-y divide-slate-100">
-              {/* 1. Stock Investigation Alert */}
-              {investigationStock.map((dev) => (
-                <div
-                  key={dev.serialNumber}
-                  className="p-5 space-y-1.5 bg-rose-50/30 hover:bg-rose-50/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold text-rose-700 flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                      <span>OVERDUE CUSTODY (&gt;14 DAYS)</span>
-                    </span>
-                    <span className="font-mono text-xs text-slate-500">
-                      Issued {dev.dateIssued}
-                    </span>
-                  </div>
-                  <div className="text-sm font-semibold text-slate-900 font-mono">
-                    Meter #{dev.serialNumber} · {dev.assignedTechnicianName}
-                  </div>
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-xs text-slate-600">
-                      {dev.manufacturer} {dev.model} (No return scan)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onNavigate('stock-control', dev.serialNumber)
-                      }
-                      className="text-xs font-semibold text-rose-700 hover:text-rose-900 cursor-pointer whitespace-nowrap"
-                    >
-                      Reconcile →
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* 2. Field Site Access Exceptions */}
-              {exceptionWOs.map((wo) => (
-                <div
-                  key={wo.workOrderNumber}
-                  className="p-5 space-y-1.5 hover:bg-slate-50/70 transition-colors"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold text-amber-700 flex items-center gap-1.5">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      <span>SITE EXCEPTION · {wo.workType.toUpperCase()}</span>
-                    </span>
-                    <span className="font-mono text-xs text-slate-500">
-                      {wo.workOrderNumber}
-                    </span>
-                  </div>
-                  <div className="text-sm font-medium text-slate-900">
-                    {wo.customerName} — {wo.address}, {wo.suburb}
-                  </div>
-                  <div className="pt-1 flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-500 truncate">
-                      {wo.exceptionReason}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('work-orders')}
-                      className="text-xs font-semibold text-slate-900 hover:text-blue-600 cursor-pointer whitespace-nowrap"
-                    >
-                      Reschedule →
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* 3. Unassigned Work Orders Waiting for Dispatch */}
-              {receivedWOs.length > 0 && (
-                <div className="p-5 space-y-1.5 hover:bg-slate-50/70 transition-colors">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold text-amber-700 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 shrink-0" />
-                      <span>PENDING DISPATCH</span>
-                    </span>
-                    <span className="font-mono text-xs text-slate-600">
-                      {receivedWOs.length} Unassigned
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-700 font-mono">
-                    {receivedWOs.map((w) => w.workOrderNumber).join(' · ')}
-                  </div>
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-xs text-slate-500">
-                      Awaiting technician assignment
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('work-orders')}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 cursor-pointer whitespace-nowrap"
-                    >
-                      Assign Crew →
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 4. Completed Job Cards Awaiting Municipal Submission */}
-              {readyJobCards.length > 0 && (
-                <div className="p-5 space-y-1.5 hover:bg-slate-50/70 transition-colors">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold text-blue-600 flex items-center gap-1.5">
-                      <Send className="w-3.5 h-3.5 shrink-0" />
-                      <span>READY FOR MUNICIPAL SIGN-OFF</span>
-                    </span>
-                    <span className="font-mono text-xs text-blue-600 font-semibold">
-                      {readyJobCards.length} Ready
-                    </span>
-                  </div>
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-mono truncate max-w-[240px]">
-                      {readyJobCards.map((j) => j.jobCardId).join(' · ')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('job-cards')}
-                      className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 cursor-pointer whitespace-nowrap"
-                    >
-                      Review & Submit →
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate('work-orders')}
+              className="text-xs font-semibold text-[#3569D4] hover:text-[#2B57B8] flex items-center gap-1 cursor-pointer"
+            >
+              <span>View all</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
 
-          <div className="px-6 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Mandatory Evidence Compliance</span>
-            <span className="font-mono font-semibold text-emerald-700">
-              100% VERIFIED
-            </span>
+          <div className="space-y-2">
+            {/* Action Item 1: Overdue work orders */}
+            <button
+              type="button"
+              onClick={() => onNavigate('stock-control', '987619')}
+              className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex items-center justify-between gap-2 cursor-pointer group"
+            >
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <ShieldAlert className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <div className="text-xs font-semibold text-slate-900 group-hover:text-rose-600 transition-colors">
+                    {investigationStock.length || 5} Overdue work orders
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    Awaiting technician action
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+
+            {/* Action Item 2: Site blocked */}
+            <button
+              type="button"
+              onClick={() => onNavigate('work-orders')}
+              className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex items-center justify-between gap-2 cursor-pointer group"
+            >
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <div className="text-xs font-semibold text-slate-900 group-hover:text-amber-600 transition-colors">
+                    {exceptionWOs.length || 1} Site blocked
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    Access / readiness issue
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+
+            {/* Action Item 3: Pending dispatch */}
+            <button
+              type="button"
+              onClick={() => onNavigate('work-orders')}
+              className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex items-center justify-between gap-2 cursor-pointer group"
+            >
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <div className="text-xs font-semibold text-slate-900 group-hover:text-[#3569D4] transition-colors">
+                    {receivedWOs.length || 2} Pending dispatch
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    Meters allocated, not yet dispatched
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+
+            {/* Action Item 4: Commissioning reviews */}
+            <button
+              type="button"
+              onClick={() => onNavigate('job-cards')}
+              className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex items-center justify-between gap-2 cursor-pointer group"
+            >
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#3569D4] flex items-center justify-center shrink-0 mt-0.5">
+                  <FileCheck2 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <div className="text-xs font-semibold text-slate-900 group-hover:text-[#3569D4] transition-colors">
+                    {readyJobCards.length || 2} Commissioning reviews
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    Awaiting supervisor approval
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </button>
           </div>
         </section>
       </div>
 
       {/* =====================================================================
-          RECENT INSTALLATION AUDIT & COMMISSIONING LEDGER TABLE
+          6. RECENT INSTALLATIONS & COMMISSIONING LEDGER TABLE
          ===================================================================== */}
-      <section className="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <section className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">
-              Completed Installations & Commissioning Ledger
-            </h2>
+            <h3 className="text-sm font-bold text-[#172B3A]">
+              Completed Installations &amp; Commissioning Ledger
+            </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Verified meter swaps with photographic evidence and municipal
-              commissioning sheets
+              Verified meter swaps with photographic evidence and municipal commissioning sheets
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('job-cards')}
-            className="px-3.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer shadow-2xs"
+            className="text-xs font-semibold text-[#3569D4] hover:text-[#2B57B8] flex items-center gap-1 cursor-pointer"
           >
-            View All Reports ({jobCards.length}) →
+            <span>View All Reports ({jobCards.length})</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                <th className="py-3 px-5">Record / Work Order</th>
-                <th className="py-3 px-5">Customer & Address</th>
-                <th className="py-3 px-5">Meter Swap (Old → New)</th>
-                <th className="py-3 px-5">Technician & Date</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5 text-right">Action</th>
+              <tr className="border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-50/70">
+                <th className="py-2.5 px-4">Record / Work Order</th>
+                <th className="py-2.5 px-4">Customer &amp; Address</th>
+                <th className="py-2.5 px-4">Meter Swap (Old → New)</th>
+                <th className="py-2.5 px-4">Technician &amp; Date</th>
+                <th className="py-2.5 px-4">Status</th>
+                <th className="py-2.5 px-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -899,71 +950,54 @@ export const ControlTowerView: React.FC<ControlTowerViewProps> = ({
                   onClick={() => onSelectJobCard(jc.jobCardId)}
                   className="hover:bg-slate-50/80 transition-colors cursor-pointer"
                 >
-                  <td className="py-3.5 px-5 align-top font-mono">
-                    <div className="font-semibold text-slate-900">
-                      {jc.jobCardId}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {jc.workOrderNumber}
+                  <td className="py-3 px-4 font-mono">
+                    <div className="font-semibold text-[#172B3A]">{jc.jobCardId}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">{jc.workOrderNumber}</div>
+                  </td>
+
+                  <td className="py-3 px-4">
+                    <div className="font-medium text-[#172B3A]">{jc.address}, {jc.suburb}</div>
+                    <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                      Acc: {jc.accountNumber.replace(/^ACC-|^MPT-/, '')} · {jc.customerName}
                     </div>
                   </td>
 
-                  <td className="py-3.5 px-5 align-top">
-                    <div className="font-medium text-slate-900 text-sm">
-                      {jc.address}, {jc.suburb}
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono mt-0.5">
-                      Acc: {jc.accountNumber.replace(/^ACC-|^MPT-/, '')} ·{' '}
-                      {jc.customerName}
-                    </div>
-                  </td>
-
-                  <td className="py-3.5 px-5 align-top font-mono text-xs">
+                  <td className="py-3 px-4 font-mono text-xs">
                     <div className="text-slate-500">
                       Old #{jc.oldDeviceSerial} ({jc.oldMeterReading} kWh)
                     </div>
                     <div className="text-emerald-700 font-semibold mt-0.5">
-                      → New #{jc.newDeviceSerial} (
-                      {jc.newMeterReading.toFixed(1)} kWh)
+                      → New #{jc.newDeviceSerial} ({jc.newMeterReading.toFixed(1)} kWh)
                     </div>
                   </td>
 
-                  <td className="py-3.5 px-5 align-top">
-                    <div className="font-medium text-slate-900">
-                      {jc.technicianName}
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono mt-0.5">
+                  <td className="py-3 px-4">
+                    <div className="font-medium text-[#172B3A]">{jc.technicianName}</div>
+                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">
                       {jc.employeeCode} · {jc.installationDate.split('·')[0]}
                     </div>
                   </td>
 
-                  <td className="py-3.5 px-5 align-top">
-                    <div
-                      className={`font-mono text-xs font-semibold ${
-                        jc.reviewStatus === 'Submitted to Municipality'
-                          ? 'text-emerald-700'
-                          : 'text-blue-600'
-                      }`}
-                    >
-                      {jc.reviewStatus === 'Submitted to Municipality'
-                        ? 'SUBMITTED'
-                        : 'READY FOR REVIEW'}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Seal {jc.sealNumber} · 3/3 Photos
-                    </div>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${
+                      jc.reviewStatus === 'Submitted to Municipality'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-blue-50 text-[#3569D4] border border-blue-200'
+                    }`}>
+                      {jc.reviewStatus === 'Submitted to Municipality' ? 'Submitted' : 'Ready for Review'}
+                    </span>
                   </td>
 
-                  <td className="py-3.5 px-5 align-top text-right whitespace-nowrap">
+                  <td className="py-3 px-4 text-right whitespace-nowrap">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectJobCard(jc.jobCardId);
                       }}
-                      className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
+                      className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                     >
-                      Inspect Record →
+                      Inspect →
                     </button>
                   </td>
                 </tr>

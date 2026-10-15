@@ -152,13 +152,13 @@ export const StockControlView: React.FC<StockControlViewProps> = ({
   const formatDeviceStatus = (status: DeviceStatus) => {
     switch (status) {
       case 'Installed':
-        return { label: 'INSTALLED', color: 'text-emerald-700' };
+        return { label: 'Installed', color: 'text-emerald-700' };
       case 'Allocated':
-        return { label: 'IN CUSTODY', color: 'text-blue-600' };
+        return { label: 'In Custody', color: 'text-blue-600' };
       case 'Investigation':
-        return { label: 'INVESTIGATION', color: 'text-rose-600' };
+        return { label: 'Investigation', color: 'text-rose-600' };
       default:
-        return { label: 'AVAILABLE', color: 'text-slate-700' };
+        return { label: 'Available', color: 'text-slate-700' };
     }
   };
 

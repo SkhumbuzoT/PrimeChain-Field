@@ -325,9 +325,8 @@ export const TechAllocationView: React.FC<TechAllocationViewProps> = ({
           <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
-                <div className="text-xs font-mono text-slate-400">
-                  TECHNICIAN RECORD · {selectedTech.employeeCode} · VEHICLE{' '}
-                  {selectedTech.vehicleReg}
+                <div className="text-xs font-mono text-slate-500">
+                  Technician {selectedTech.employeeCode} · Vehicle {selectedTech.vehicleReg}
                 </div>
                 <h2 className="text-xl font-semibold text-slate-900 mt-0.5">
                   {selectedTech.name}
@@ -435,9 +434,9 @@ export const TechAllocationView: React.FC<TechAllocationViewProps> = ({
                   Devices signed out to vehicle {selectedTech.vehicleReg}
                 </p>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold font-mono">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium font-mono">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>CUSTODY LOCK ACTIVE</span>
+                <span>Custody Lock Active</span>
               </div>
             </div>
 

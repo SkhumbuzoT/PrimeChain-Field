@@ -1,15 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-nav-dark: #172B3A;
+  --color-nav-hover: #1F384B;
+  --color-nav-active: #3569D4;
+  --color-brand-primary: #3569D4;
+  --color-brand-primary-hover: #2B57B8;
+  --color-app-canvas: #F3F5F8;
+  --color-surface-card: #FFFFFF;
+  --color-border-card: #E2E8F0;
+}
+
 @layer base {
   :root {
     --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --app-canvas: #F3F5F8;
+    --nav-dark: #172B3A;
+    --primary-blue: #3569D4;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #F8FAFC;
-    color: #0F172A;
+    background-color: #F3F5F8;
+    color: #172B3A;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -30,7 +47,7 @@
 @keyframes fadeInSlide {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -39,20 +56,20 @@
 }
 
 .saas-page-transition {
-  animation: fadeInSlide 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInSlide 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Subtle enterprise scrollbars */
+/* Polished enterprise scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
@@ -76,4 +93,3 @@
     break-before: page;
   }
 }
-
